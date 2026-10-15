@@ -122,6 +122,7 @@ label.champ{display:flex;flex-direction:column;gap:4px;font-size:14px;color:var(
 .badge.prospect{background:var(--bleu-doux);color:var(--bleu)}
 .badge.client{background:var(--pos-fond);color:var(--pos-txt)}
 .badge.qualifie{background:var(--sable);color:var(--encre-2)}
+.badge.dev{background:var(--ambre-doux);color:var(--ambre-fonce)}
 .depot{border:2px dashed var(--ligne-forte);border-radius:14px;padding:18px;text-align:center;cursor:pointer;color:var(--muted)}
 .depot.sur{border-color:var(--ambre);background:var(--ambre-doux)}
 /* Chiffres */
@@ -182,9 +183,10 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 <script>/* ===== CAP — moteur de l'outil du nouveau conseiller =====
    Données stockées dans le navigateur (localStorage), exportables et réimportables (portabilité entre versions). */
 'use strict';
-const CAP_VERSION = '1.0';
+const CAP_VERSION = '1.2';
 const CLE_STOCK = 'cap-donnees';
 const LIEN_ATELIERS = 'https://asso-forman.fr/#/auth/workshop';
+const LIEN_CAP = 'https://labecka-conseil.github.io/cap/';
 
 /* ===== Utilitaires ===== */
 const $ = (s, r) => (r || document).querySelector(s);
@@ -211,6 +213,7 @@ const nomComplet = c => [capital(c.prenom), String(c.nom || '').trim()].filter(B
 
 /* ===== Référentiels ===== */
 const PALIERS_PRIMO = [50, 100, 200, 300, 400, 500];
+const CIBLE_QUALIF = 50; // 50 noms qualifiés, puis on passe à autre chose (décision du 15/10)
 const PALIERS_CLIENTS = [10, 20, 30];
 const PALIERS_VA = [50000, 100000, 250000, 500000];
 const HABILITATIONS = {
@@ -222,6 +225,54 @@ const HABILITATIONS = {
 };
 const FORMATIONS_FORMAN = ['Prise de R1', 'L’Art de la mise en relation', 'SCPI de rendement', 'Développement Équipe', 'PER', 'Assurance Vie', 'Financement', 'Fiscalité', 'Business Plan'];
 const PLANCHER_REVISION = 5;
+const FORMATION_DEV = 'Développement Équipe'; // sur asso-forman : « Développement Equipe - Niveau 1 » (École des Développeurs niveau 1)
+
+/* Chemin vers Manager : statuts FORMAN et leurs objectifs (repris tels quels du cockpit du 04/10, décision du 13/10).
+   auto = ce que CAP sait vérifier seul ; sans auto, le filleul coche lui-même. */
+const PARCOURS_FORMAN = [
+  { statut: 'NEOMAN', lib: 'Neoman', vers: 'Beman', objectifs: [
+    { id: 'n1', txt: 'Avoir suivi le Cursus Initial obligatoire (Découverte Métier, Atelier Démarrage, ESP)', auto: 'esp' },
+    { id: 'n2', txt: 'Avoir finalisé ma primo-liste de 500 noms', auto: 'primo:500' },
+    { id: 'n3', txt: 'Maîtriser le Tronc Commun : le retranscrire seul en rendez-vous client' },
+    { id: 'n4', txt: 'Maîtriser un module spécifique (PER, SCPI ou assurance vie), présenté et signé seul' },
+    { id: 'n5', txt: 'Maîtriser la prise de rendez-vous : 3 rendez-vous d’avance minimum', auto: 'rdv:3' },
+    { id: 'n6', txt: 'Être inscrit au stage MIA ou Immobilier-IOBSP de Prodémial Business School', auto: 'qcm-inscrit' },
+    { id: 'n7', txt: 'Avoir une clientèle d’au moins 2 foyers fiscaux distincts', auto: 'clients:2' },
+    { id: 'n8', txt: 'Avoir suivi un stage des 3 Jours de la Réussite', auto: '3j' },
+    { id: 'n9', txt: 'Être à jour administrativement auprès de Prodémial (dont RCP)', auto: 'rcp' },
+    { id: 'n10', txt: 'Être inscrit au Greffe / INPI', auto: 'inpi' },
+    { id: 'n11', txt: 'Réaliser régulièrement le Mail Manager', auto: 'mailmanager' },
+    { id: 'n12', txt: 'Avoir participé à une formation Développement Équipe niveau 1', auto: 'dev-n1' }
+  ] },
+  { statut: 'BEMAN', lib: 'Beman', vers: 'Adman', objectifs: [
+    { id: 'b1', txt: 'Avoir un VA équipe en cours supérieur à 240 000 € (offre de prêt acceptée ou placements en cours)' },
+    { id: 'b2', txt: 'Être autonome en R2 sur les modules spécifiques immobilier, PER et assurance vie' },
+    { id: 'b3', txt: 'Avoir 6 rendez-vous d’avance (rendez-vous perso ou en accompagnement de filleuls)', auto: 'rdv:6' },
+    { id: 'b4', txt: 'QCM Compétences validés (Immobilier et Placements)' },
+    { id: 'b5', txt: 'Avoir réalisé 1 vente immobilière ou 1 vente SCPI (offre de prêt acceptée)' },
+    { id: 'b6', txt: 'Avoir suivi une formation Développement 1 dans les 12 derniers mois', auto: 'dev-n1:365' },
+    { id: 'b7', txt: 'Avoir accompagné 2 personnes en formation initiale dans les 12 derniers mois' },
+    { id: 'b8', txt: 'Avoir réalisé un VA acté cumulé de 25 000 € en placements' },
+    { id: 'b9', txt: 'Être adhérent à FORMAN' },
+    { id: 'b10', txt: 'Avoir obtenu mon numéro ORIAS (assurance et IOB)' },
+    { id: 'b11', txt: 'Avoir planifié 1 formation ou événement par mois (temps partagé) ou tous les 15 jours (temps plein)', auto: 'formation-planifiee' },
+    { id: 'b12', txt: 'Avoir obtenu mon attestation d’emploi Stellium' },
+    { id: 'b13', txt: 'Réaliser régulièrement le Mail Manager', auto: 'mailmanager' }
+  ] },
+  { statut: 'ADMAN', lib: 'Adman', vers: 'Manager', objectifs: [
+    { id: 'a1', txt: 'Avoir la qualification de Manager, au sens du PMR Stellium' },
+    { id: 'a2', txt: 'Avoir co-animé 1 formation' },
+    { id: 'a3', txt: 'Avoir 8 rendez-vous d’avance (dont au moins 2 rendez-vous perso)', auto: 'rdv:8' },
+    { id: 'a4', txt: 'Être autonome en R2 sur le module spécifique LMNP' },
+    { id: 'a5', txt: 'Avoir accompagné 4 personnes en Découverte Métier' },
+    { id: 'a6', txt: 'Avoir suivi 1 formation ou événement dans le dernier mois', auto: 'formation:30' },
+    { id: 'a7', txt: 'Avoir 1 conseiller inscrit chez Stellium' },
+    { id: 'a8', txt: 'Réaliser régulièrement le Mail Manager', auto: 'mailmanager' },
+    { id: 'a9', txt: 'Être habilité MIA, IOBSP, Immobilier et agent lié (ou CIF)' },
+    { id: 'a10', txt: 'Être adhérent à FORMAN' }
+  ] },
+  { statut: 'MANAGER', lib: 'Manager', vers: '', objectifs: [] }
+];
 
 /* Semaines types (décisions du 13/10/2026). decl : j0 = dès l'ouverture, apres3j = après les 3 Jours, qcm = après l'inscription au QCM.
    libAvant = libellé affiché avant les 3 Jours. */
@@ -264,13 +315,16 @@ const SEMAINES = {
 function etatVide() {
   return {
     schema: 1, versionOutil: CAP_VERSION, creeLe: aujourdhui(),
-    profil: { prenom: '', nom: '', parrain: '', parrainNom: '', rythme: 'partage', dateAD: aujourdhui(), date3J: '', dateESP: '' },
+    profil: { prenom: '', nom: '', parrain: '', parrainNom: '', rythme: 'partage', dateAD: aujourdhui(), date3J: '', dateESP: '', statut: 'NEOMAN' },
     habilitation: { formation: '', dateQCM: '', heures: {}, qcmValide: false },
     contacts: [],
     taches: {},          // cle -> { fait:bool, faitLe, sous:{id:bool} }
     hebdo: {},           // lundi ISO -> { cle -> { sous:{}, fait:bool } }
     formations: {},      // thématique -> { date }
     plages: [],          // créneaux ajoutés à la main (proposition du voyant)
+    parcours: {},        // objectifs FORMAN cochés à la main : id -> { fait:true, le }
+    modele: {},          // semaine type modifiée par le filleul : rythme -> [plages]
+    exceptions: {},      // jour ISO -> { cle de plage -> null (retirée) | { d, f, lib } (modifiée) }
     actif: {},           // jour ISO -> nombre d'actions
     derniereSauvegarde: ''
   };
@@ -288,7 +342,7 @@ function migrer(d) {
   o.profil = Object.assign(etatVide().profil, d.profil || {});
   o.habilitation = Object.assign(etatVide().habilitation, d.habilitation || {});
   ['contacts', 'plages'].forEach(k => { if (!Array.isArray(o[k])) o[k] = []; });
-  ['taches', 'hebdo', 'formations', 'actif'].forEach(k => { if (!o[k] || typeof o[k] !== 'object') o[k] = {}; });
+  ['taches', 'hebdo', 'formations', 'actif', 'parcours', 'modele', 'exceptions'].forEach(k => { if (!o[k] || typeof o[k] !== 'object') o[k] = {}; });
   o.contacts.forEach(c => { if (!Array.isArray(c.evts)) c.evts = []; if (!c.id) c.id = uid(); });
   o.versionOutil = CAP_VERSION;
   return o;
@@ -303,6 +357,7 @@ const fin3J = () => S.profil.date3J ? addJours(S.profil.date3J, 2) : '';
 function phase() {
   const a = aujourdhui();
   if (!S.profil.date3J || a <= fin3J()) return 'atelier';
+  if (S.profil.statut && S.profil.statut !== 'NEOMAN') return 'manager';
   const j = S.profil.dateAD ? diffJours(S.profil.dateAD, a) : 0;
   return j > 90 ? 'routine' : 'apres3j';
 }
@@ -319,6 +374,10 @@ const libRdv = e => e.type === 'EM' ? 'Étude' : 'R' + e.num;
 function etudesSemaine(lundi) { const fin = addJours(lundi, 6); let n = 0; S.contacts.forEach(c => c.evts.forEach(e => { if (e.type === 'EM' && e.date >= lundi && e.date <= fin) n++; })); return n; }
 function etudesTotal() { let n = 0; S.contacts.forEach(c => c.evts.forEach(e => { if (e.type === 'EM' && e.fait) n++; })); return n; }
 const qualifies = () => S.contacts.filter(c => c.qualifie).length;
+/* Semaine type effective : celle du filleul s'il l'a modifiée, sinon le modèle. Chaque plage a une clé stable jour-début. */
+const cleplage = p => p.k || (p.j + '-' + p.d);
+function semaineType(rythme) { rythme = rythme || S.profil.rythme; const m = S.modele && S.modele[rythme]; return (m && m.length ? m : SEMAINES[rythme] || []).map(p => Object.assign({}, p, { k: cleplage(p) })); }
+function personnaliserSemaine(rythme) { rythme = rythme || S.profil.rythme; if (!S.modele[rythme] || !S.modele[rythme].length) S.modele[rythme] = semaineType(rythme); return S.modele[rythme]; }
 function palierSuivant(paliers, val) { return paliers.find(p => p > val) || paliers[paliers.length - 1]; }
 function palierPrecedent(paliers, val) { let p = 0; paliers.forEach(x => { if (x <= val) p = x; }); return p; }
 
@@ -338,6 +397,39 @@ function semainesActives() {
   if (!active(l)) l = addJours(l, -7); // la semaine en cours n'est pas encore finie
   while (active(l)) { n++; l = addJours(l, -7); }
   return n;
+}
+
+/* ===== Chemin vers Manager : évaluation des objectifs FORMAN ===== */
+const niveauForman = () => PARCOURS_FORMAN.find(n => n.statut === (S.profil.statut || 'NEOMAN')) || PARCOURS_FORMAN[0];
+function mailManagerRegulier() { /* envoyé au moins 3 des 4 dernières semaines (semaine en cours comprise) */
+  let n = 0; for (let k = 0; k < 4; k++) { const l = addJours(lundiCourant(), -7 * k), h = S.hebdo[l] && S.hebdo[l].mailmanager; if (h && h.sous && h.sous.envoye) n++; }
+  return n >= 3;
+}
+function datesFormations() { return Object.values(S.formations).map(f => f.date).filter(Boolean).sort(); }
+function evalAuto(code) {
+  const [k, v] = String(code).split(':'), n = Number(v) || 0, a = aujourdhui();
+  const dev = S.formations[FORMATION_DEV] && S.formations[FORMATION_DEV].date;
+  switch (k) {
+    case 'esp': return !!(S.taches.esp && S.taches.esp.fait);
+    case 'primo': return nbContacts() >= n;
+    case 'rdv': return rdvAvance() >= n;
+    case 'qcm-inscrit': return !!S.habilitation.dateQCM;
+    case 'clients': return clients().length >= n;
+    case '3j': return apres3J();
+    case 'rcp': return !!(S.taches['inpi-rcp'] && S.taches['inpi-rcp'].sous.rcp);
+    case 'inpi': return !!(S.taches['inpi-rcp'] && S.taches['inpi-rcp'].sous.inpi);
+    case 'mailmanager': return mailManagerRegulier();
+    case 'dev-n1': return !!dev && dev <= a && (!n || diffJours(dev, a) <= n);
+    case 'formation': { const d = datesFormations().filter(x => x <= a).pop(); return !!d && diffJours(d, a) <= n; }
+    case 'formation-planifiee': return datesFormations().some(x => x >= a);
+    default: return false;
+  }
+}
+function objectifsEvalues() {
+  return niveauForman().objectifs.map(o => {
+    const manuel = !!(S.parcours[o.id] && S.parcours[o.id].fait);
+    return Object.assign({}, o, { auto: !!o.auto, ok: o.auto ? evalAuto(o.auto) || manuel : manuel });
+  });
 }
 
 /* ===== Moteur des tâches : 3 cartes visibles à la fois =====
@@ -385,11 +477,11 @@ const TACHES = [
     visible: () => faite('inscription-3j'),
     sous: () => [ { id: 'finaliser', txt: 'Finaliser ma story' }, { id: 'envoyer', txt: 'L’envoyer à mon parrain et obtenir sa validation' } ] },
   { cle: 'qualif', type: 'continue', axe: 'Rendez-vous', prio: 33,
-    titre: () => 'Qualifier ma primo-liste',
-    detail: () => 'Ceux dont tu connais déjà la situation passent devant : ce sont tes premiers rendez-vous.',
+    titre: () => `Qualifier ${CIBLE_QUALIF} noms de ma primo-liste`,
+    detail: () => 'Ceux dont tu connais déjà la situation passent devant : ce sont tes premiers rendez-vous. À 50 noms qualifiés, tu passes à autre chose.',
     visible: () => nbContacts() >= 100,
-    termine: () => nbContacts() >= 500 && qualifies() >= nbContacts(),
-    jauge: () => { const q = qualifies(), n = Math.max(1, nbContacts()); return { val: q, max: n, pct: q / n, txt: `${nf(q)} / ${nf(n)} qualifiés` }; },
+    termine: () => qualifies() >= CIBLE_QUALIF,
+    jauge: () => { const q = qualifies(); return { val: q, max: CIBLE_QUALIF, pct: Math.min(1, q / CIBLE_QUALIF), txt: `${nf(q)} / ${CIBLE_QUALIF} qualifiés` }; },
     sous: () => [],
     actions: () => '<button class="btn petit" data-act="qualifier">Qualifier des noms</button>' },
 
@@ -485,8 +577,9 @@ function jalon() {
 }
 
 /* ===== Affichage ===== */
-const VUE = { onglet: 'semaine', lundi: null, filtre: 'tous', cherche: '', limite: 150 };
-const ONGLETS = [['semaine', 'Ma semaine'], ['primo', 'Ma primo-liste'], ['chiffres', 'Mes chiffres'], ['reglages', 'Réglages']];
+const VUE = { onglet: 'semaine', lundi: null, filtre: 'tous', cherche: '', limite: 150, devFiltre: 'arelire', devCherche: '', devLimite: 100 };
+/* L'onglet Développement est là dès le début (optionnel) ; Vers Manager s'ouvre après les 3 Jours. */
+const onglets = () => [['semaine', 'Ma semaine'], ['primo', 'Ma primo-liste'], ['developpement', 'Développement']].concat(apres3J() ? [['parcours', 'Vers Manager']] : []).concat([['chiffres', 'Mes chiffres'], ['reglages', 'Réglages']]);
 let TOAST_T = null;
 function toast(msg) { const t = $('#toast'); if (!t) return; t.textContent = msg; t.classList.add('on'); clearTimeout(TOAST_T); TOAST_T = setTimeout(() => t.classList.remove('on'), 2800); }
 
@@ -496,10 +589,11 @@ function rendre() {
   const app = $('#app');
   if (!S.profil.prenom) { app.innerHTML = vueAccueil(); return; }
   if (!VUE.lundi) VUE.lundi = lundiCourant();
-  const vues = { semaine: vueSemaine, primo: vuePrimo, chiffres: vueChiffres, reglages: vueReglages };
+  const vues = { semaine: vueSemaine, primo: vuePrimo, developpement: vueDeveloppement, parcours: vueParcours, chiffres: vueChiffres, reglages: vueReglages };
+  if (!vues[VUE.onglet] || !onglets().some(([k]) => k === VUE.onglet)) VUE.onglet = 'semaine';
   app.innerHTML = `<div class="page">
     <header class="entete"><div class="marque">CAP<small>${esc(nomComplet({ prenom: S.profil.prenom, nom: S.profil.nom }))} · J+${jPlus()}${S.profil.parrain ? ' · parrain : ' + esc(nomComplet({ prenom: S.profil.parrain, nom: S.profil.parrainNom })) : ''}</small></div><div class="esp"></div></header>
-    <nav class="onglets" role="tablist">${ONGLETS.map(([k, l]) => `<button role="tab" aria-selected="${VUE.onglet === k}" data-onglet="${k}">${l}</button>`).join('')}</nav>
+    <nav class="onglets" role="tablist">${onglets().map(([k, l]) => `<button role="tab" aria-selected="${VUE.onglet === k}" data-onglet="${k}">${l}</button>`).join('')}</nav>
     <main class="pile">${vues[VUE.onglet]()}</main></div>`;
   if (VUE.onglet === 'primo') brancherDepot();
 }
@@ -526,7 +620,7 @@ function vueFrise() {
     { k: 'atelier', t: 'Démarrage', s: 'de l’Atelier aux 3 Jours' },
     { k: 'apres3j', t: 'Les 4 axes', s: 'des 3 Jours à J90' },
     { k: 'routine', t: 'Routine', s: 'à partir de J91' },
-    { k: 'manager', t: 'Vers Manager', s: '500 000 € de VA' }
+    { k: 'manager', t: 'Vers Manager', s: 'statuts FORMAN, 500 000 € de VA' }
   ];
   const ordre = ['atelier', 'apres3j', 'routine', 'manager'], i = ordre.indexOf(ph);
   return `<div class="frise" aria-label="Mon parcours">${etapes.map((e, k) => `<div class="ph ${k < i ? 'passee' : k === i ? 'en-cours' : 'verrou'}"><b>${e.t}</b>${k <= i ? e.s : 'à venir'}</div>`).join('')}</div>`;
@@ -571,8 +665,9 @@ function vueSemaine() {
 function plagesDuJour(date) {
   const j = jourSemaine(date), a3 = apres3J() || (S.profil.date3J && date > fin3J());
   const qcm = !!S.habilitation.dateQCM && date <= S.habilitation.dateQCM && !S.habilitation.qcmValide;
-  const modele = (SEMAINES[S.profil.rythme] || []).filter(p => p.j === j && (p.decl === 'j0' || (p.decl === 'apres3j' && a3) || (p.decl === 'qcm' && qcm)))
-    .map(p => ({ plage: true, d: p.d, f: p.f, lib: a3 ? p.lib : (p.libAvant || p.lib) }));
+  const ex = S.exceptions[date] || {};
+  const modele = semaineType().filter(p => p.j === j && (p.decl === 'j0' || (p.decl === 'apres3j' && a3) || (p.decl === 'qcm' && qcm)) && ex[p.k] !== null)
+    .map(p => { const o = ex[p.k] || {}; return { plage: true, k: p.k, d: o.d || p.d, f: o.f || p.f, lib: o.lib || (a3 ? p.lib : (p.libAvant || p.lib)) }; });
   const ajoutees = S.plages.filter(p => p.date === date).map(p => ({ plage: true, ajoutee: true, id: p.id, d: p.d, f: p.f, lib: p.lib }));
   return modele.concat(ajoutees);
 }
@@ -585,7 +680,7 @@ function vueAgenda() {
   const l = VUE.lundi, a = aujourdhui();
   const jours = [0, 1, 2, 3, 4, 5, 6].map(k => addJours(l, k));
   const html = jours.map(d => {
-    const items = plagesDuJour(d).map(p => ({ h: p.d, html: `<div class="evt plage"><div class="h">${p.d}–${p.f}</div><div class="t">${esc(p.lib)}</div><div class="a">${p.ajoutee ? `<button class="btn petit discret" data-act="suppr-plage" data-id="${p.id}" aria-label="Retirer ce créneau">Retirer</button>` : ''}</div></div>` }))
+    const items = plagesDuJour(d).map(p => ({ h: p.d, html: `<div class="evt plage"><div class="h">${p.d}–${p.f}</div><div class="t">${esc(p.lib)}</div><div class="a actions"><button class="btn petit discret" data-act="plage-modif" data-date="${d}" ${p.ajoutee ? `data-id="${p.id}"` : `data-k="${p.k}"`}>Modifier</button><button class="btn petit discret" data-act="plage-retirer" data-date="${d}" ${p.ajoutee ? `data-id="${p.id}"` : `data-k="${p.k}"`} aria-label="Retirer ce créneau">Retirer</button></div></div>` }))
       .concat(evtsDuJour(d).map(({ c, e }) => ({ h: e.heure || '00:00', html: `<div class="evt ${e.fait ? 'fait' : ''}"><div class="h">${esc(e.heure || "—")}</div>
         <div class="t"><span class="puce ${e.type === 'EM' ? 'em' : e.num === 'X' ? 'rx' : ''}">${libRdv(e)}</span><b>${esc(nomCourt(c))}</b>${e.visio ? `<div class="visio"><a href="${esc(e.visio)}" target="_blank" rel="noopener">${esc(e.visio)}</a></div>` : ''}${e.note ? `<div class="petit muted">${esc(e.note)}</div>` : ''}</div>
         <div class="a actions"><button class="btn petit ${e.fait ? 'discret' : 'ligne'}" data-act="evt-fait" data-c="${c.id}" data-e="${e.id}">${e.fait ? 'Fait' : 'Marquer fait'}</button><button class="btn petit discret" data-act="evt-modif" data-c="${c.id}" data-e="${e.id}">Modifier</button><button class="btn petit discret" data-act="evt-ics" data-c="${c.id}" data-e="${e.id}" aria-label="Ajouter à mon agenda">.ics</button></div></div>` })))
@@ -608,8 +703,8 @@ function vuePrimo() {
   const filtres = [['tous', 'Tous'], ['aqualifier', 'À qualifier'], ['qualifies', 'Qualifiés'], ['prospects', 'Prospects'], ['clients', 'Clients']];
   const lignes = liste.slice(0, VUE.limite).map(c => {
     const st = statutContact(c), proch = c.evts.filter(e => !e.fait && e.date >= aujourdhui()).sort((x, y) => (x.date + x.heure).localeCompare(y.date + y.heure))[0];
-    return `<div class="contact"><div><span class="nom">${esc(nomComplet(c))}</span>${st !== 'contact' ? `<span class="badge ${st}">${st === 'client' ? 'CLIENT' : 'PROSPECT'}</span>` : ''}${c.qualifie && st === 'contact' ? '<span class="badge qualifie">Qualifié</span>' : ''}
-      <div class="meta">${[c.metier, c.lien, proch ? `${libRdv(proch)} le ${fmtDate(proch.date)}${proch.heure ? ' à ' + proch.heure : ''}` : ''].filter(Boolean).map(esc).join(' · ')}</div></div>
+    return `<div class="contact"><div><span class="nom">${esc(nomComplet(c))}</span>${st !== 'contact' ? `<span class="badge ${st}">${st === 'client' ? 'CLIENT' : 'PROSPECT'}</span>` : ''}${c.qualifie && st === 'contact' ? '<span class="badge qualifie">Qualifié</span>' : ''}${c.potentiel ? '<span class="badge dev">À contacter pour JD</span>' : ''}
+      <div class="meta">${[c.metier, c.lien, c.marche ? 'marché ' + c.marche : '', c.impot ? 'impôt : ' + c.impot : '', proch ? `${libRdv(proch)} le ${fmtDate(proch.date)}${proch.heure ? ' à ' + proch.heure : ''}` : ''].filter(Boolean).map(esc).join(' · ')}</div></div>
       <div class="actions">${st === 'contact' ? `<button class="btn petit ${c.qualifie ? 'discret' : 'ligne'}" data-act="qualif" data-c="${c.id}">${c.qualifie ? 'Qualifié' : 'Qualifier'}</button>` : ''}<button class="btn petit discret" data-act="fiche" data-c="${c.id}">Ouvrir</button></div></div>`;
   }).join('');
   return `<section class="grille">
@@ -624,6 +719,49 @@ function vuePrimo() {
       <div class="filtres">${filtres.map(([k, l]) => `<button aria-pressed="${VUE.filtre === k}" data-filtre="${k}">${l}</button>`).join('')}</div>
       <div class="liste">${lignes || '<div class="vide">Aucun nom pour ce filtre.</div>'}</div>
       ${liste.length > VUE.limite ? `<button class="btn petit discret" data-act="plus">Afficher ${Math.min(150, liste.length - VUE.limite)} de plus (${liste.length - VUE.limite} restants)</button>` : ''}</section>`;
+}
+
+/* ---- Développement ---- */
+function vueDeveloppement() {
+  const f = S.formations[FORMATION_DEV] || {}, a = aujourdhui();
+  const etatDev = f.date ? (f.date <= a ? `Suivie le ${fmtDate(f.date, true)}.` : `Prévue le ${fmtDate(f.date, true)}.`) : 'Pas encore positionnée.';
+  const reperes = S.contacts.filter(c => c.potentiel).length;
+  const q = norm(VUE.devCherche);
+  const F = { arelire: c => !c.potentiel, reperes: c => !!c.potentiel };
+  const liste = S.contacts.filter(F[VUE.devFiltre] || F.arelire).filter(c => !q || norm(nomComplet(c) + ' ' + (c.metier || '') + ' ' + (c.lien || '')).includes(q))
+    .sort((x, y) => norm(x.prenom + x.nom).localeCompare(norm(y.prenom + y.nom)));
+  const lignes = liste.slice(0, VUE.devLimite).map(c => `<div class="contact"><div><span class="nom">${esc(nomComplet(c))}</span>${statutContact(c) !== 'contact' ? `<span class="badge ${statutContact(c)}">${statutContact(c) === 'client' ? 'CLIENT' : 'PROSPECT'}</span>` : ''}
+      <div class="meta">${[c.metier, c.lien].filter(Boolean).map(esc).join(' · ')}</div></div>
+      <div class="actions"><button class="btn petit ${c.potentiel ? 'discret' : 'ligne'}" data-act="potentiel" data-c="${c.id}">${c.potentiel ? 'Retirer' : 'À contacter pour JD'}</button></div></div>`).join('');
+  return `<p class="petit muted">Le développement, c'est proposer le métier. Cet onglet est là dès le début, à ton rythme.</p>
+    <section class="grille">
+      <div class="carte pile"><h2>École des Développeurs niveau 1</h2>
+        <div class="petit muted">Sur asso-forman, l’atelier s’appelle « Développement Equipe - Niveau 1 ». ${esc(etatDev)}</div>
+        <label class="champ petit" for="dev-date">Date de ma formation${f.date ? ' ✓' : ''}<input type="date" id="dev-date" data-forman="${esc(FORMATION_DEV)}" value="${esc(f.date || '')}"></label>
+        <div class="actions"><a class="btn petit ligne" href="${LIEN_ATELIERS}" target="_blank" rel="noopener">Choisir ma session sur asso-forman</a></div></div>
+      <div class="carte pile"><h2>Easy One et les filtres de Marcel Soh</h2>
+        <div class="petit muted">Support en cours de préparation : il sera ajouté dans une prochaine version de CAP.</div></div></section>
+    <section class="carte pile"><h2>Qui, dans ma primo-liste, pourrait faire le métier ?</h2>
+      <div class="petit muted">C’est la colonne « À contacter pour JD » de ton tableau primo-liste. Relis ta liste avec cette question en tête : ${reperes} ${reperes > 1 ? 'personnes repérées' : 'personne repérée'} sur ${nf(nbContacts())}.</div>
+      <div class="outils"><input type="search" id="cherche-dev" placeholder="Chercher un nom, un métier…" value="${esc(VUE.devCherche)}" aria-label="Chercher"></div>
+      <div class="filtres">${[['arelire', 'À relire'], ['reperes', 'Repérés']].map(([k, l]) => `<button aria-pressed="${VUE.devFiltre === k}" data-dev-filtre="${k}">${l}</button>`).join('')}</div>
+      <div class="liste">${lignes || `<div class="vide">${nbContacts() ? 'Personne pour ce filtre.' : 'Importe d’abord ta primo-liste.'}</div>`}</div>
+      ${liste.length > VUE.devLimite ? `<button class="btn petit discret" data-act="dev-plus">Afficher ${Math.min(100, liste.length - VUE.devLimite)} de plus (${liste.length - VUE.devLimite} restants)</button>` : ''}</section>`;
+}
+
+/* ---- Vers Manager : statuts FORMAN et paliers ---- */
+function vueParcours() {
+  const nv = niveauForman(), objs = objectifsEvalues(), ok = objs.filter(o => o.ok).length, cli = clients().length;
+  const choix = `<label class="champ petit" for="statut">Mon statut FORMAN actuel<select id="statut" data-cible="profil.statut">${PARCOURS_FORMAN.map(n => `<option value="${n.statut}" ${nv.statut === n.statut ? 'selected' : ''}>${n.lib}</option>`).join('')}</select></label>`;
+  const lignes = objs.map(o => `<label class="coche ${o.ok ? 'fait' : ''}"><input type="checkbox" ${o.ok ? 'checked' : ''} ${o.auto && o.ok && !(S.parcours[o.id] && S.parcours[o.id].fait) ? 'disabled' : ''} data-parcours="${o.id}"><span>${esc(o.txt)}${o.auto ? ' <span class="petit muted">· suivi par CAP</span>' : ''}</span></label>`).join('');
+  const objectifs = nv.objectifs.length ? `<section class="carte pile"><h2>De ${nv.lib} vers ${nv.vers}</h2>
+      <div class="jauge" role="img" aria-label="${ok} objectifs sur ${objs.length}"><i style="width:${Math.round(ok / objs.length * 100)}%"></i></div><div class="petit tnum"><b>${ok} / ${objs.length} objectifs</b></div>
+      <div class="petit muted">Les objectifs « suivis par CAP » se cochent seuls d’après tes données ; les autres, c’est toi qui les coches quand c’est fait.</div>
+      <div>${lignes}</div></section>` : '<section class="carte"><h2>Manager</h2><div class="petit muted">Cap atteint. Les paliers de VA continuent ci-dessous.</div></section>';
+  return `<section class="carte pile"><div class="form">${choix}</div></section>${objectifs}
+    <h2>Mes paliers</h2><section class="grille">
+      <div class="carte kpi"><div class="lib">Clients</div><div class="val">${cli}</div>${jaugeGlissante(PALIERS_CLIENTS, cli, 'clients')}</div>
+      <div class="carte kpi"><div class="lib">Volume d’affaires</div><div class="petit muted">${cli >= 10 ? 'Import de la fiche de rémunération : prochaine version.' : 'S’affiche à ton 10e client.'}</div><div class="petit muted">Paliers : ${PALIERS_VA.map(v => nf(v) + ' €').join(', ')}. Cap Manager à 500 000 €.</div></div></section>`;
 }
 
 /* ---- Mes chiffres ---- */
@@ -660,11 +798,14 @@ function vueReglages() {
       <label class="champ">Mon rythme<select name="rythme"><option value="partage" ${p.rythme === 'partage' ? 'selected' : ''}>Temps partagé</option><option value="plein" ${p.rythme === 'plein' ? 'selected' : ''}>Temps plein</option></select></label>
       <label class="champ">Date de mon Atelier Démarrage<input type="date" name="dateAD" value="${esc(p.dateAD)}"></label>
       <label class="champ">Premier jour de mes 3 Jours<input type="date" name="date3J" value="${esc(p.date3J)}"></label>
-      <div class="actions" style="align-self:end"><button class="btn" type="submit">Enregistrer</button></div></form></section>
+      <div class="actions" style="align-self:end"><button class="btn" type="submit">Enregistrer</button></div></form>
+      <div class="petit muted">Semaine type : ${(S.modele[p.rythme] && S.modele[p.rythme].length) || Object.keys(S.exceptions).length ? 'tu l’as modifiée dans ton agenda.' : 'celle de ton rythme, telle quelle.'} <button class="btn petit discret" data-act="semaine-origine">Remettre la semaine type d’origine</button></div></section>
     <section class="carte pile"><h2>Mes données</h2>
       <p class="petit muted">Tout est enregistré sur cet appareil. Exporte une sauvegarde chaque semaine : elle sert aussi à passer sur une nouvelle version de CAP ou sur un autre appareil sans rien perdre.${ds ? ` Dernière sauvegarde : ${fmtDate(ds, true)}.` : ' Aucune sauvegarde pour l’instant.'}</p>
       <div class="actions"><button class="btn" data-act="exporter">Exporter ma sauvegarde</button><button class="btn ligne" data-act="restaurer">Restaurer une sauvegarde</button><button class="btn discret" data-act="effacer">Tout effacer</button></div>
-      <div class="petit muted">CAP version ${CAP_VERSION}</div></section>`;
+      <div class="petit muted">CAP version ${CAP_VERSION}</div></section>
+    <section class="carte pile"><h2>CAP sur mon téléphone</h2>
+      <p class="petit muted">Adresse : <a href="${LIEN_CAP}">${LIEN_CAP}</a>. Ouvre-la dans Safari (iPhone) ou Chrome (Android), puis « Partager » ou le menu ⋮ et « Sur l’écran d’accueil » : CAP s’ouvre ensuite comme une application. Chaque appareil garde ses propres données ; pour passer de l’un à l’autre, exporte ta sauvegarde ici et restaure-la sur l’autre.</p></section>`;
 }
 
 /* ===== Fenêtres ===== */
@@ -682,26 +823,36 @@ function fenetre(titre, corps, boutons) {
   });
 }
 const champ = (lib, nom, val, type, extra) => `<label class="champ">${lib}<input type="${type || 'text'}" name="${nom}" value="${esc(val || '')}" ${extra || ''}></label>`;
+const choix = (lib, nom, val, options) => `<label class="champ">${lib}<select name="${nom}">${options.map(([v, l]) => `<option value="${v}" ${(val || '') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>`;
+/* Champs de la fiche = colonnes du « Tableau primoliste » de l'Atelier Démarrage (AD - Tableau primoliste.xlsx) */
+const CHAMPS_CONTACT = ['prenom', 'nom', 'marche', 'age', 'situation', 'metier', 'proprio', 'impot', 'insatisf', 'lien', 'relationnel', 'tel', 'email', 'commentaire'];
 
 /* ---- Contacts ---- */
 const trouverContact = id => S.contacts.find(c => c.id === id);
 function creerContact(d, source) {
-  const c = { id: uid(), prenom: capital(d.prenom), nom: String(d.nom || '').trim(), tel: d.tel || '', email: d.email || '', metier: d.metier || '', lien: d.lien || '', commentaire: d.commentaire || '', qualifie: false, source: source || 'manuel', ajoute: aujourdhui(), evts: [], signeLe: '' };
+  const c = { id: uid(), qualifie: !!d.qualifie, potentiel: !!d.potentiel, source: source || 'manuel', ajoute: aujourdhui(), evts: [], signeLe: '' };
+  CHAMPS_CONTACT.forEach(k => { c[k] = k === 'prenom' ? capital(d[k]) : String(d[k] || '').trim(); });
   S.contacts.push(c); return c;
 }
 async function formContact(c) {
   const nouveau = !c; c = c || {};
   const evts = nouveau ? '' : `<div class="pile"><h3>Étapes</h3>${c.evts.length ? c.evts.slice().sort((a, b) => (a.date + a.heure).localeCompare(b.date + b.heure)).map(e => `<div class="petit"><span class="puce ${e.type === 'EM' ? 'em' : e.num === 'X' ? 'rx' : ''}">${libRdv(e)}</span>${fmtDate(e.date, true)} ${esc(e.heure || '')} ${e.fait ? '· fait' : ''}</div>`).join('') : '<div class="petit muted">Aucune étape pour l’instant.</div>'}
     ${c.signeLe ? `<div class="petit"><span class="badge client">CLIENT</span> solution signée le ${fmtDate(c.signeLe)}</div>` : ''}</div>`;
-  const corps = `<div class="form">${champ('Prénom', 'prenom', c.prenom, 'text', 'required')}${champ('Nom', 'nom', c.nom)}${champ('Téléphone', 'tel', c.tel, 'tel')}${champ('Mail', 'email', c.email, 'email')}${champ('Métier', 'metier', c.metier)}${champ('Comment je le connais', 'lien', c.lien)}</div>
-    <label class="champ">Notes<textarea name="commentaire" rows="2">${esc(c.commentaire || '')}</textarea></label>${evts}`;
+  const corps = `<div class="form">${champ('Prénom', 'prenom', c.prenom, 'text', 'required')}${champ('Nom', 'nom', c.nom)}
+      ${choix('Marché', 'marche', c.marche, [['', '—'], ['chaud', 'Chaud'], ['froid', 'Froid']])}${champ('Âge', 'age', c.age)}${champ('Situation familiale', 'situation', c.situation)}${champ('Métier', 'metier', c.metier)}
+      ${choix('Propriétaire RP', 'proprio', c.proprio, [['', '—'], ['oui', 'Oui'], ['non', 'Non']])}${champ('Niveau d’impôt', 'impot', c.impot)}${champ('Insatisfaction métier', 'insatisf', c.insatisf)}
+      ${champ('Lien', 'lien', c.lien)}${champ('Relationnel', 'relationnel', c.relationnel)}${champ('Téléphone', 'tel', c.tel, 'tel')}${champ('Mail', 'email', c.email, 'email')}</div>
+    <div class="form"><label class="coche"><input type="checkbox" name="qualifie" ${c.qualifie ? 'checked' : ''} ${c.signeLe || (c.evts || []).some(e => e.type === 'RDV') ? 'disabled' : ''}><span>À prendre RDV client (qualifié)</span></label><label class="coche"><input type="checkbox" name="potentiel" ${c.potentiel ? 'checked' : ''}><span>À contacter pour JD (pourrait faire le métier)</span></label></div>
+    <label class="champ">Commentaire<textarea name="commentaire" rows="2">${esc(c.commentaire || '')}</textarea></label>${evts}`;
   const btns = nouveau ? [{ lib: 'Annuler', v: 'annuler', cls: 'discret' }, { lib: 'Ajouter', v: 'ok' }]
     : [{ lib: 'Supprimer', v: 'suppr', cls: 'discret' }, { lib: 'Caler une étude', v: 'em', cls: 'ligne' }, { lib: `Caler un ${c.signeLe ? 'RX' : 'R' + prochainNumero(c)}`, v: 'rdv', cls: 'ligne' }, ...(c.signeLe ? [] : [{ lib: 'Solution signée', v: 'signe', cls: 'ligne' }]), { lib: 'Enregistrer', v: 'ok' }];
   const r = await fenetre(nouveau ? 'Ajouter un nom' : nomComplet(c), corps, btns);
   if (r.v === 'annuler') return;
   if (nouveau) { if (r.v === 'ok') { creerContact(r.data, 'manuel'); maj(); toast('Ajouté à ta primo-liste'); } return; }
   if (r.v === 'suppr') { const ok = await fenetre('Supprimer ' + nomComplet(c) + ' ?', '<p>Le nom et ses étapes seront retirés de ta primo-liste.</p>', [{ lib: 'Annuler', v: 'annuler', cls: 'discret' }, { lib: 'Supprimer', v: 'ok' }]); if (ok.v === 'ok') { S.contacts = S.contacts.filter(x => x.id !== c.id); maj(); } return; }
-  ['prenom', 'nom', 'tel', 'email', 'metier', 'lien', 'commentaire'].forEach(k => { if (r.data[k] !== undefined) c[k] = k === 'prenom' ? capital(r.data[k]) : r.data[k]; });
+  CHAMPS_CONTACT.forEach(k => { if (r.data[k] !== undefined) c[k] = k === 'prenom' ? capital(r.data[k]) : String(r.data[k]).trim(); });
+  if (!c.signeLe && !c.evts.some(e => e.type === 'RDV')) c.qualifie = r.data.qualifie === 'on';
+  c.potentiel = r.data.potentiel === 'on';
   if (r.v === 'em') return formEvt({ contact: c, type: 'EM' });
   if (r.v === 'rdv') return formEvt({ contact: c, type: 'RDV' });
   if (r.v === 'signe') return formSignature(c);
@@ -747,13 +898,47 @@ function basculerFait(cId, eId) { const c = trouverContact(cId); const e = c && 
 /* ---- Voyant : proposer un créneau ---- */
 async function proposerCreneau(quoi) {
   const lib = quoi === 'r1' ? 'Prise de R1 (appels)' : 'Études de marché';
-  const modele = (SEMAINES[S.profil.rythme] || []).find(p => p.lib === lib) || { d: '18:30', f: '19:30' };
+  const modele = semaineType().find(p => p.lib === lib) || { d: '18:30', f: '19:30' };
   let d = addJours(aujourdhui(), 1); if (jourSemaine(d) === 7) d = addJours(d, 1);
   const r = await fenetre('Caler un créneau', `<p>Il te manque des rendez-vous d’avance. Je te propose ce créneau, change ce qui ne te va pas.</p>
     <label class="champ">Créneau<select name="lib"><option ${quoi === 'r1' ? 'selected' : ''}>Prise de R1 (appels)</option><option ${quoi !== 'r1' ? 'selected' : ''}>Études de marché</option></select></label>
     <div class="form">${champ('Date', 'date', d, 'date', 'required')}${champ('Début', 'd', modele.d, 'time', 'required')}${champ('Fin', 'f', modele.f, 'time', 'required')}</div>`, [{ lib: 'Annuler', v: 'annuler', cls: 'discret' }, { lib: 'Ajouter à ma semaine', v: 'ok' }]);
   if (r.v !== 'ok') return;
   S.plages.push({ id: uid(), date: r.data.date, d: r.data.d, f: r.data.f, lib: r.data.lib }); VUE.lundi = lundiDe(r.data.date); maj(); toast('Créneau ajouté à ta semaine');
+}
+
+/* ---- Créneaux de la semaine type : modifier ou retirer, pour ce jour ou pour toutes les semaines ---- */
+function plageDuModele(k) { return semaineType().find(p => p.k === k); }
+async function modifierPlage(b) {
+  const date = b.dataset.date, id = b.dataset.id, k = b.dataset.k;
+  const ajoutee = id ? S.plages.find(p => p.id === id) : null;
+  const base = ajoutee || plageDuModele(k); if (!base) return;
+  const ex = (S.exceptions[date] || {})[k] || {};
+  const cur = { d: ex.d || base.d, f: ex.f || base.f, lib: ex.lib || (ajoutee ? base.lib : (apres3J() ? base.lib : (base.libAvant || base.lib))) };
+  const portee = ajoutee ? '' : `<div class="form"><label class="coche"><input type="radio" name="portee" value="jour" checked><span>Ce jour seulement</span></label><label class="coche"><input type="radio" name="portee" value="toutes"><span>Toutes les semaines</span></label></div>`;
+  const r = await fenetre('Modifier ce créneau', `<div class="form">${champ('Début', 'd', cur.d, 'time', 'required')}${champ('Fin', 'f', cur.f, 'time', 'required')}</div>${champ('Libellé', 'lib', cur.lib, 'text', 'required')}${portee}`,
+    [{ lib: 'Annuler', v: 'annuler', cls: 'discret' }, { lib: 'Enregistrer', v: 'ok' }]);
+  if (r.v !== 'ok') return;
+  const nv = { d: r.data.d, f: r.data.f, lib: r.data.lib.trim() };
+  if (ajoutee) Object.assign(ajoutee, nv);
+  else if (r.data.portee === 'toutes') { const m = personnaliserSemaine(); const p = m.find(x => x.k === k); if (p) { p.d = nv.d; p.f = nv.f; p.lib = nv.lib; delete p.libAvant; } }
+  else { S.exceptions[date] = S.exceptions[date] || {}; S.exceptions[date][k] = nv; }
+  maj(); toast('Créneau modifié');
+}
+async function retirerPlage(b) {
+  const date = b.dataset.date, id = b.dataset.id, k = b.dataset.k;
+  if (id) { S.plages = S.plages.filter(p => p.id !== id); maj(); return; }
+  const r = await fenetre('Retirer ce créneau', '<p>Pour ce jour seulement, ou pour toutes les semaines ?</p>',
+    [{ lib: 'Annuler', v: 'annuler', cls: 'discret' }, { lib: 'Toutes les semaines', v: 'toutes', cls: 'ligne' }, { lib: 'Ce jour seulement', v: 'ok' }]);
+  if (r.v === 'annuler') return;
+  if (r.v === 'toutes') { const m = personnaliserSemaine(); const i = m.findIndex(x => x.k === k); if (i >= 0) m.splice(i, 1); }
+  else { S.exceptions[date] = S.exceptions[date] || {}; S.exceptions[date][k] = null; }
+  maj(); toast('Créneau retiré');
+}
+async function semaineOrigine() {
+  const r = await fenetre('Semaine type d’origine', '<p>Tes modifications de créneaux (ce jour ou toutes les semaines) seront effacées. Les créneaux ajoutés à la main restent.</p>', [{ lib: 'Annuler', v: 'annuler', cls: 'discret' }, { lib: 'Remettre', v: 'ok' }]);
+  if (r.v !== 'ok') return;
+  S.modele = {}; S.exceptions = {}; maj(); toast('Semaine type d’origine remise');
 }
 
 /* ---- Agenda : fichier .ics (Google, Apple, Outlook) ---- */
@@ -816,12 +1001,22 @@ async function fenetreMailManager() {
 }
 
 /* ---- Import de la primo-liste (Excel, CSV) ---- */
+/* Colonnes du « Tableau primoliste » de l'Atelier Démarrage, plus quelques variantes */
 const COLONNES = [
   { cle: 'nom', motifs: ['nom / prénom', 'nom/prénom', 'nom prénom', 'nom et prénom', 'nom', 'name', 'contact'] },
   { cle: 'prenom', motifs: ['prénom', 'prenom', 'first'] },
+  { cle: 'froid', motifs: ['marché froid', 'froid'] },
+  { cle: 'chaud', motifs: ['marché chaud', 'chaud'] },
+  { cle: 'age', motifs: ['age', 'âge'] },
+  { cle: 'situation', motifs: ['situation familiale', 'situation', 'famille'] },
   { cle: 'metier', motifs: ['métier', 'metier', 'profession', 'activité', 'activite', 'job'] },
+  { cle: 'proprio', motifs: ['propriétaire', 'proprietaire', 'rp'] },
+  { cle: 'impot', motifs: ['impôt', 'impot', 'tmi'] },
+  { cle: 'insatisf', motifs: ['insatisfaction', 'satisfait', 'satisfaction'] },
   { cle: 'lien', motifs: ['lien', 'origine', 'rencontre'] },
+  { cle: 'relationnel', motifs: ['relationnel', 'réseau', 'reseau'] },
   { cle: 'qualifie', motifs: ['rdv client', 'prendre rdv', 'a prendre', 'à prendre', 'rendez-vous', 'qualifi'] },
+  { cle: 'potentiel', motifs: ['jd', 'dm', 'découverte', 'decouverte', 'contacter pour'] },
   { cle: 'tel', motifs: ['tél', 'tel', 'téléphone', 'telephone', 'phone', 'numéro', 'numero'] },
   { cle: 'email', motifs: ['mail', 'email', 'e-mail', 'courriel'] },
   { cle: 'commentaire', motifs: ['commentaire', 'notes', 'remarque', 'observation'] }
@@ -829,7 +1024,7 @@ const COLONNES = [
 function detecterColonnes(entete) {
   const map = {};
   entete.forEach((h, i) => {
-    const n = norm(h); if (!n) return;
+    const n = norm(h).replace(/\s+/g, ' '); if (!n) return;
     const colle = m => { const nm = norm(m); if (n === nm) return true; if (nm.length <= 3) return new RegExp('(^|[^a-z])' + nm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '($|[^a-z])').test(n); return n.includes(nm); };
     for (const c of COLONNES) { if (map[c.cle] !== undefined) continue; if (c.motifs.some(colle)) { map[c.cle] = i; break; } }
   });
@@ -851,8 +1046,12 @@ function lignesVersContacts(lignes) {
     if (!nom && !prenom) continue;
     if (!/[a-zà-ÿ]/i.test(nom + prenom)) continue;
     if (/^(nom|total|tableau)$/i.test(norm(nom))) continue;
-    if (!prenom && map.prenom === undefined && /\s/.test(nom)) { const p = nom.split(/\s+/); prenom = p.shift(); nom = p.join(' '); }
-    res.push({ prenom: capital(prenom), nom, metier: g('metier'), lien: g('lien'), tel: g('tel'), email: g('email'), commentaire: g('commentaire'), qualifie: oui(g('qualifie')) });
+    if (!prenom && map.prenom === undefined && /\s/.test(nom)) { /* « Nom / Prénom » en une cellule : NOM en capitales d'abord, sinon prénom d'abord */
+      const p = nom.split(/\s+/);
+      if (p[0] === p[0].toUpperCase() && p[1] !== p[1].toUpperCase()) { nom = p.shift(); prenom = p.join(' '); } else { prenom = p.shift(); nom = p.join(' '); }
+    }
+    const ouiNon = v => { const n = norm(v); return n === '' ? '' : oui(v) ? 'oui' : 'non'; };
+    res.push({ prenom: capital(prenom), nom, marche: oui(g('chaud')) ? 'chaud' : oui(g('froid')) ? 'froid' : '', age: g('age'), situation: g('situation'), metier: g('metier'), proprio: ouiNon(g('proprio')), impot: g('impot'), insatisf: g('insatisf'), lien: g('lien'), relationnel: g('relationnel'), tel: g('tel'), email: g('email'), commentaire: g('commentaire'), qualifie: oui(g('qualifie')), potentiel: oui(g('potentiel')) });
   }
   return res;
 }
@@ -888,8 +1087,8 @@ function fusionnerContacts(nouveaux) {
   let ajoutes = 0, maj2 = 0;
   nouveaux.forEach(n => {
     const e = ex.get(cle(n));
-    if (e) { ['metier', 'lien', 'tel', 'email', 'commentaire'].forEach(k => { if (n[k] && !e[k]) e[k] = n[k]; }); if (n.qualifie) e.qualifie = true; maj2++; }
-    else { const c = creerContact(n, 'import'); c.qualifie = !!n.qualifie; ex.set(cle(c), c); ajoutes++; }
+    if (e) { CHAMPS_CONTACT.forEach(k => { if (n[k] && !e[k]) e[k] = n[k]; }); if (n.qualifie) e.qualifie = true; if (n.potentiel) e.potentiel = true; maj2++; }
+    else { const c = creerContact(n, 'import'); ex.set(cle(c), c); ajoutes++; }
   });
   return { ajoutes, maj: maj2 };
 }
@@ -943,9 +1142,10 @@ function poser(chemin, val) { const k = chemin.split('.'); let o = S; while (k.l
 function brancher() {
   const app = $('#app');
   app.addEventListener('click', e => {
-    const b = e.target.closest('[data-onglet],[data-filtre],[data-act]'); if (!b) return;
+    const b = e.target.closest('[data-onglet],[data-filtre],[data-dev-filtre],[data-act]'); if (!b) return;
     if (b.dataset.onglet) { VUE.onglet = b.dataset.onglet; rendre(); window.scrollTo(0, 0); return; }
     if (b.dataset.filtre) { VUE.filtre = b.dataset.filtre; VUE.limite = 150; rendre(); return; }
+    if (b.dataset.devFiltre) { VUE.devFiltre = b.dataset.devFiltre; VUE.devLimite = 100; rendre(); return; }
     const a = b.dataset.act, c = b.dataset.c ? trouverContact(b.dataset.c) : null;
     const ev = c && b.dataset.e ? c.evts.find(x => x.id === b.dataset.e) : null;
     switch (a) {
@@ -962,9 +1162,14 @@ function brancher() {
       case 'ics-semaine': icsSemaine(); break;
       case 'sem': VUE.lundi = addJours(VUE.lundi, Number(b.dataset.pas)); rendre(); break;
       case 'suppr-plage': S.plages = S.plages.filter(p => p.id !== b.dataset.id); maj(); break;
+      case 'plage-modif': modifierPlage(b); break;
+      case 'plage-retirer': retirerPlage(b); break;
+      case 'semaine-origine': semaineOrigine(); break;
       case 'proposer': proposerCreneau(b.dataset.quoi); break;
       case 'mail-manager': fenetreMailManager(); break;
       case 'plus': VUE.limite += 150; rendre(); break;
+      case 'dev-plus': VUE.devLimite += 100; rendre(); break;
+      case 'potentiel': c.potentiel = !c.potentiel; maj(); break;
       case 'exporter': exporter(); break;
       case 'restaurer': restaurer(); break;
       case 'effacer': effacer(); break;
@@ -977,11 +1182,16 @@ function brancher() {
       else { const st = t.dataset.hebdo ? etatHebdo(t.dataset.tache) : etatTache(t.dataset.tache); st.sous[t.dataset.sous] = t.checked; }
       maj(); return;
     }
+    if (t.dataset.parcours) { if (t.checked) S.parcours[t.dataset.parcours] = { fait: true, le: aujourdhui() }; else delete S.parcours[t.dataset.parcours]; maj(); return; }
     if (t.dataset.cible) { poser(t.dataset.cible, t.value); maj(); return; }
     if (t.dataset.heures) { S.habilitation.heures[lundiCourant()] = Number(t.value) || 0; maj(); return; }
     if (t.dataset.forman) { const k = t.dataset.forman; S.formations[k] = { date: t.value, poseLe: t.value ? aujourdhui() : '' }; if (!t.value) delete S.formations[k]; maj(); return; }
   });
-  app.addEventListener('input', e => { if (e.target.id === 'cherche') { VUE.cherche = e.target.value; VUE.limite = 150; const pos = e.target.selectionStart; rendre(); const n = $('#cherche'); if (n) { n.focus(); n.setSelectionRange(pos, pos); } } });
+  app.addEventListener('input', e => {
+    const id = e.target.id; if (id !== 'cherche' && id !== 'cherche-dev') return;
+    if (id === 'cherche') { VUE.cherche = e.target.value; VUE.limite = 150; } else { VUE.devCherche = e.target.value; VUE.devLimite = 100; }
+    const pos = e.target.selectionStart; rendre(); const n = $('#' + id); if (n) { n.focus(); n.setSelectionRange(pos, pos); }
+  });
   app.addEventListener('submit', e => {
     if (e.target.id === 'form-accueil' || e.target.id === 'form-profil') {
       e.preventDefault(); const d = Object.fromEntries(new FormData(e.target).entries());

@@ -149,6 +149,30 @@ dialog .bas{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;padding
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 .voyant{flex-wrap:wrap}
 @media (max-width:600px){.voyant .actions{width:100%}.voyant .actions .btn{flex:1}}
+/* v1.3 — tâches repliées (l'agenda remonte), objectifs 3 par 3, plages libres proposées */
+details.tache{gap:0}
+details.tache>summary{list-style:none;cursor:pointer;display:flex;flex-direction:column;gap:6px}
+details.tache>summary::-webkit-details-marker{display:none}
+details.tache>summary:focus-visible{outline:2px solid var(--ambre);outline-offset:4px;border-radius:6px}
+details.tache .resume{display:flex;justify-content:space-between;align-items:center;gap:8px}
+details.tache .ouvrir{color:var(--ambre-fonce);font-weight:700;margin-left:auto}
+details.tache .ouvrir::before{content:'Détails ▾'}
+details.tache[open] .ouvrir::before{content:'Replier ▴'}
+details.tache .contenu{display:flex;flex-direction:column;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--ligne)}
+.taches{align-items:start}
+.sous-titre{font-size:16px;margin-top:4px}
+details.repli>summary{cursor:pointer;font-weight:700;color:var(--muted);font-size:14px;padding:4px 0}
+details.repli[open]>summary{margin-bottom:4px}
+.plages-libres{display:flex;flex-direction:column;gap:6px;margin:4px 0 10px}
+.puces-plages{display:flex;flex-wrap:wrap;gap:6px}
+.puce-plage{border:1px solid var(--ligne-forte);background:var(--carte);border-radius:999px;padding:6px 12px;font-size:14px;font-weight:600;cursor:pointer;font-variant-numeric:tabular-nums}
+.puce-plage:hover{border-color:var(--vert)}
+.puce-plage[aria-pressed="true"]{background:var(--vert);border-color:var(--vert);color:#fff}
+/* v1.4 — primo-liste par univers, qualification, départ = inscription */
+.badge.rdv{background:var(--bleu-doux);color:var(--bleu)}
+.badge{white-space:nowrap}
+label.champ[hidden]{display:none}
+dialog h3{margin-top:6px}
 </style>
 </head>
 <body>
@@ -183,7 +207,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 <script>/* ===== CAP — moteur de l'outil du nouveau conseiller =====
    Données stockées dans le navigateur (localStorage), exportables et réimportables (portabilité entre versions). */
 'use strict';
-const CAP_VERSION = '1.2';
+const CAP_VERSION = '1.4';
 const CLE_STOCK = 'cap-donnees';
 const LIEN_ATELIERS = 'https://asso-forman.fr/#/auth/workshop';
 const LIEN_CAP = 'https://labecka-conseil.github.io/cap/';
@@ -225,7 +249,68 @@ const HABILITATIONS = {
 };
 const FORMATIONS_FORMAN = ['Prise de R1', 'L’Art de la mise en relation', 'SCPI de rendement', 'Développement Équipe', 'PER', 'Assurance Vie', 'Financement', 'Fiscalité', 'Business Plan'];
 const PLANCHER_REVISION = 5;
-const FORMATION_DEV = 'Développement Équipe'; // sur asso-forman : « Développement Equipe - Niveau 1 » (École des Développeurs niveau 1)
+const FORMATION_DEV = 'Développement Équipe';
+
+/* Univers de la primo-liste : fiche « Primo-liste – faire émerger son réseau » (Cédric P., 10/2026), plus « Mis en relation » (décision du 13/10/2026).
+   piste = les questions qui aident à faire remonter des noms, affichée sous le choix de l'univers. */
+const UNIVERS = [
+  ['Famille & proches', 'Famille proche, cousins, oncles et tantes, belle-famille, parrains et marraines, amis de la famille, amis des parents.'],
+  ['Amis & relations personnelles', 'Amis actuels, amis d’enfance, amis de vacances, amis que je vois peu, couples d’amis, connaissances.'],
+  ['École & études', 'École primaire, collège, lycée, études supérieures, anciens de promo, BDE, associations d’anciens élèves.'],
+  ['Anciennes entreprises', 'Anciens collègues, managers, collaborateurs, clients, fournisseurs, prestataires, commerciaux rencontrés.'],
+  ['Réseau professionnel actuel', 'Clients, fournisseurs, partenaires, experts-comptables, avocats, consultants, indépendants, chefs d’entreprise.'],
+  ['Santé & médical', 'Médecin, dentiste, kiné, ostéo, pharmacien, infirmier, opticien, podologue, vétérinaire.'],
+  ['Maison & travaux', 'Agent immobilier, architecte, plombier, électricien, peintre, jardinier, pisciniste, décorateur, déménageur.'],
+  ['Commerces du quotidien', 'Coiffeur, esthéticienne, restaurateur, caviste, boulanger, garagiste, vendeur automobile, commerçants habituels.'],
+  ['Sport & loisirs', 'Club de sport, coach, partenaires de sport, salle de sport, golf, tennis, padel, pétanque, ski, danse, yoga.'],
+  ['Associations & bénévolat', 'Associations sportives, culturelles, caritatives, parents d’élèves, comité des fêtes, anciens membres.'],
+  ['Enfants', 'Parents des copains des enfants, école, crèche, nounou, professeurs, activités extrascolaires, clubs sportifs.'],
+  ['Voisinage & vie locale', 'Voisins actuels, anciens voisins, commerçants du quartier, syndic, copropriété, relations de quartier.'],
+  ['Vacances & voyages', 'Personnes rencontrées en vacances, habitués d’un même lieu, voyages de groupe, ski, camping, clubs.'],
+  ['Culture & passions', 'Théâtre, musique, cinéma, photo, peinture, cuisine, œnologie, automobile, moto, clubs de passionnés.'],
+  ['Réseaux sociaux', 'LinkedIn, Facebook, Instagram, WhatsApp, anciens groupes, contacts avec lesquels on interagit régulièrement.'],
+  ['Téléphone', 'Parcourir le répertoire du téléphone de A à Z, sans chercher à qualifier les personnes à ce stade.'],
+  ['WhatsApp', 'Groupes familiaux, anciens collègues, sport, école, associations, anniversaires, événements, groupes oubliés.'],
+  ['E-mails', 'Anciens échanges professionnels ou personnels, contacts oubliés, prestataires, anciens clients ou fournisseurs.'],
+  ['Événements de vie', 'Mariages, anniversaires, baptêmes, crémaillères, séminaires, soirées, retrouvailles, événements professionnels.'],
+  ['Professionnels qui m’accompagnent', 'Banquier, assureur, courtier, notaire, avocat, expert-comptable, conseiller, agent immobilier.'],
+  ['Automobile & mobilité', 'Concessionnaire, vendeur automobile, garagiste, carrossier, loueur, moniteur d’auto-école, contacts moto et vélo.'],
+  ['Animaux', 'Vétérinaire, éducateur canin, toiletteur, pension, personnes rencontrées lors des promenades.'],
+  ['Entrepreneurs autour de moi', 'Commerçants, dirigeants, indépendants, professions libérales, franchisés, artisans que je connais.'],
+  ['Perdus de vue', 'Qui connaissais-je il y a 5, 10 ou 20 ans ? Qui ai-je apprécié mais avec qui je n’ai plus de contact ?'],
+  ['Les connecteurs', 'Ceux qui connaissent beaucoup de monde : président d’association, commerçant, restaurateur, coach sportif, agent immobilier, recruteur, responsable RH, dirigeant. Une seule personne peut faire apparaître 10 autres noms.'],
+  ['Mis en relation', 'Une personne de ta primo-liste t’a présenté ce contact : note qui.']
+];
+const UNIVERS_MER = 'Mis en relation';
+/* Qualification (décisions du 13/10/2026) : âge en nombre, situation familiale, métier par grande famille, propriétaire RP, niveau d'impôt 1 à 3, téléphone et mail. */
+const SITUATIONS = [['celibataire', 'Célibataire'], ['divorce', 'Divorcé ou séparé'], ['marie', 'Marié'], ['pacse', 'Pacsé']];
+/* Grandes familles de métiers de la « Trame conseillers invitation DM » (Cédric P., 10/2026) + Autre ; mots = pour reconnaître un métier en clair à l'import */
+const METIERS = [
+  { id: 'commerce', lib: 'Commerce / Vente / Business', ex: 'commercial, vendeur, agent immobilier, business developer, directeur de concession', mots: ['commerc', 'vend', 'vente', 'business', 'concession', 'magasin', 'distribution', 'negoc', 'achet', 'acheteur', 'immobilier', 'retail', 'boutique', 'caiss', 'sales'] },
+  { id: 'finance', lib: 'Finance / Banque / Assurance', ex: 'banquier, assureur, courtier, comptable, contrôleur de gestion', mots: ['banq', 'banc', 'assur', 'courtier', 'compta', 'finance', 'financ', 'gestion', 'audit', 'fiscal', 'analyste', 'tresor', 'credit', 'patrimoine', 'actuaire', 'expert-comptable'] },
+  { id: 'tech', lib: 'Ingénieurs / Tech / IT', ex: 'ingénieur, informaticien, développeur, data, chef de projet', mots: ['ingenieur', 'informati', 'develop', 'data', 'chef de projet', 'cheffe de projet', 'it ', 'tech', 'logiciel', 'reseau', 'devops', 'web', 'digital', 'cyber', 'programm', 'scientifique', 'chercheur', 'r&d'] },
+  { id: 'management', lib: 'Management / RH / Accompagnement', ex: 'manager, RH, recruteur, formateur, coach, directeur d’agence', mots: ['manag', ' rh ', 'ressources humaines', 'recrut', 'format', 'coach', 'directeur', 'directrice', 'responsable', 'drh', 'cadre', 'consultant', 'chef d’equipe', 'chef d\'equipe', 'superviseur', 'encadr'] },
+  { id: 'sante', lib: 'Santé / Humain / Service', ex: 'infirmier, médecin, pharmacien, kiné, aide-soignant, enseignant, éducateur', mots: ['infirm', 'medecin', 'docteur', 'pharma', 'kine', 'osteo', 'soign', 'sante', 'enseign', 'professeur', 'prof ', 'instit', 'educat', 'social', 'psycho', 'dentiste', 'sage-femme', 'veterinaire', 'aide a domicile', 'auxiliaire', 'secretaire', 'assistant', 'fonctionnaire', 'administrat', 'juriste', 'police', 'gendarm', 'pompier', 'militaire'] },
+  { id: 'entrepreneur', lib: 'Entrepreneurs / Indépendants / Professions libérales', ex: 'entrepreneur, artisan, restaurateur, avocat, architecte, indépendant', mots: ['entrepren', 'gerant', 'dirigeant', 'fondateur', 'independant', 'liberal', 'artisan', 'restaurat', 'avocat', 'architecte', 'notaire', 'auto-entrepreneur', 'freelance', 'commercant', 'patron', 'pdg', 'ceo', 'chef d’entreprise', 'chef d\'entreprise', 'coiffeu', 'boulang', 'boucher', 'fleuriste', 'taxi', 'vtc'] },
+  { id: 'terrain', lib: 'Terrain / Technique / Opérationnel', ex: 'chauffeur, mécanicien, électricien, plombier, conducteur d’engins, maintenance', mots: ['chauffeur', 'conducteur', 'mecani', 'electric', 'plomb', 'maintenance', 'technicien', 'ouvrier', 'operateur', 'logisti', 'magasinier', 'cariste', 'livreur', 'btp', 'batiment', 'macon', 'peintre', 'menuis', 'carross', 'chantier', 'agricult', 'usine', 'production', 'securite', 'agent'] },
+  { id: 'communication', lib: 'Communication / Créatif / Relationnel', ex: 'communication, marketing, événementiel, hôtellerie, tourisme, community manager', mots: ['communic', 'marketing', 'evenement', 'hotel', 'tourisme', 'community', 'graphi', 'design', 'journal', 'media', 'publicit', 'artist', 'photograph', 'musicien', 'createur', 'redact', 'relation', 'accueil', 'reception', 'voyage', 'restauration'] },
+  { id: 'autre', lib: 'Autre', ex: '', mots: [] }
+];
+const IMPOTS = [['1', '1 · faible'], ['2', '2 · moyen'], ['3', '3 · fort']];
+const libMetier = id => { const m = METIERS.find(x => x.id === id); return m ? m.lib : ''; };
+const libSituation = id => { const s = SITUATIONS.find(x => x[0] === id); return s ? s[1] : ''; };
+function familleMetier(texte) { /* métier en clair → grande famille, sinon '' */
+  const t = ' ' + norm(texte).replace(/[’']/g, ' ') + ' '; if (!t.trim()) return '';
+  for (const m of METIERS) { if (m.mots.some(w => t.includes(norm(w).replace(/[’']/g, ' ')))) return m.id; }
+  return 'autre';
+}
+function universDe(texte) { /* ancien champ « Lien » en clair → univers, sinon '' */
+  const t = norm(texte); if (!t) return '';
+  const exact = UNIVERS.find(u => norm(u[0]) === t); if (exact) return exact[0];
+  const regles = [['Famille & proches', ['famille', 'cousin', 'oncle', 'tante', 'frere', 'soeur', 'parent', 'beau', 'belle', 'neveu', 'niece', 'parrain', 'marraine', 'conjoint', 'mari', 'femme']], ['Amis & relations personnelles', ['ami', 'pote', 'copain', 'copine', 'connaissance']], ['École & études', ['ecole', 'etude', 'fac', 'promo', 'lycee', 'college', 'universit', 'classe', 'bts', 'master']], ['Anciennes entreprises', ['ancien', 'ex-coll', 'ex coll', 'ancienne']], ['Réseau professionnel actuel', ['collegue', 'travail', 'boulot', 'client', 'fournisseur', 'partenaire', 'pro', 'bureau', 'entreprise']], ['Sport & loisirs', ['sport', 'club', 'foot', 'tennis', 'golf', 'salle', 'coach', 'course', 'velo', 'danse', 'yoga', 'equipe']], ['Voisinage & vie locale', ['voisin', 'quartier', 'immeuble', 'village']], ['Enfants', ['enfant', 'creche', 'nounou', 'maitresse', 'parents d']], ['Associations & bénévolat', ['asso', 'benevol']], ['Réseaux sociaux', ['linkedin', 'facebook', 'instagram', 'reseau social']], ['Vacances & voyages', ['vacance', 'voyage', 'camping']], ['Mis en relation', ['mis en relation', 'recommand', 'presente', 'introduit', 'via ']]];
+  for (const [u, mots] of regles) { if (mots.some(w => t.includes(w))) return u; }
+  return '';
+} // sur asso-forman : « Développement Equipe - Niveau 1 » (École des Développeurs niveau 1)
 
 /* Chemin vers Manager : statuts FORMAN et leurs objectifs (repris tels quels du cockpit du 04/10, décision du 13/10).
    auto = ce que CAP sait vérifier seul ; sans auto, le filleul coche lui-même. */
@@ -315,7 +400,7 @@ const SEMAINES = {
 function etatVide() {
   return {
     schema: 1, versionOutil: CAP_VERSION, creeLe: aujourdhui(),
-    profil: { prenom: '', nom: '', parrain: '', parrainNom: '', rythme: 'partage', dateAD: aujourdhui(), date3J: '', dateESP: '', statut: 'NEOMAN' },
+    profil: { prenom: '', nom: '', parrain: '', parrainNom: '', rythme: 'partage', dateInscription: aujourdhui(), date3J: '', dateESP: '', statut: 'NEOMAN' },
     habilitation: { formation: '', dateQCM: '', heures: {}, qcmValide: false },
     contacts: [],
     taches: {},          // cle -> { fait:bool, faitLe, sous:{id:bool} }
@@ -343,7 +428,17 @@ function migrer(d) {
   o.habilitation = Object.assign(etatVide().habilitation, d.habilitation || {});
   ['contacts', 'plages'].forEach(k => { if (!Array.isArray(o[k])) o[k] = []; });
   ['taches', 'hebdo', 'formations', 'actif', 'parcours', 'modele', 'exceptions'].forEach(k => { if (!o[k] || typeof o[k] !== 'object') o[k] = {}; });
-  o.contacts.forEach(c => { if (!Array.isArray(c.evts)) c.evts = []; if (!c.id) c.id = uid(); });
+  /* v1.4 : le départ de CAP est le jour d'inscription dans le réseau (avant : date de l'Atelier Démarrage) */
+  if (d.profil && d.profil.dateAD && !d.profil.dateInscription) o.profil.dateInscription = d.profil.dateAD;
+  delete o.profil.dateAD;
+  o.contacts.forEach(c => {
+    if (!Array.isArray(c.evts)) c.evts = []; if (!c.id) c.id = uid();
+    /* v1.4 : « Lien » devient l'univers ; le métier en clair devient une grande famille ; « À prendre RDV client » est distinct de « qualifié » */
+    if (c.univers === undefined) { c.univers = universDe(c.lien); if (c.lien && !c.univers) c.commentaire = [c.commentaire, 'Lien : ' + c.lien].filter(Boolean).join(' · '); delete c.lien; }
+    if (c.metierTexte === undefined && c.metier && !METIERS.some(m => m.id === c.metier)) { c.metierTexte = c.metier; c.metier = familleMetier(c.metierTexte); }
+    if (c.rdvClient === undefined) c.rdvClient = !!c.qualifie;
+    if (c.misEnRelationPar === undefined) c.misEnRelationPar = '';
+  });
   o.versionOutil = CAP_VERSION;
   return o;
 }
@@ -358,11 +453,13 @@ function phase() {
   const a = aujourdhui();
   if (!S.profil.date3J || a <= fin3J()) return 'atelier';
   if (S.profil.statut && S.profil.statut !== 'NEOMAN') return 'manager';
-  const j = S.profil.dateAD ? diffJours(S.profil.dateAD, a) : 0;
+  const j = S.profil.dateInscription ? diffJours(S.profil.dateInscription, a) : 0;
   return j > 90 ? 'routine' : 'apres3j';
 }
 const apres3J = () => phase() !== 'atelier';
-const jPlus = () => S.profil.dateAD ? diffJours(S.profil.dateAD, aujourdhui()) : 0;
+/* J0 = jour d'inscription dans le réseau ; CAP peut servir avant (J-n) */
+const jPlus = () => S.profil.dateInscription ? diffJours(S.profil.dateInscription, aujourdhui()) : 0;
+const jLabel = () => { const j = jPlus(); return j < 0 ? 'J' + j + ' avant mon inscription' : 'J+' + j; };
 const cibleEtudes = () => S.profil.rythme === 'plein' ? 10 : 5;
 function statutContact(c) { if (c.signeLe) return 'client'; if (c.evts.some(e => e.type === 'RDV')) return 'prospect'; return 'contact'; }
 const nbContacts = () => S.contacts.length;
@@ -373,6 +470,9 @@ function prochainNumero(c) { if (c.signeLe) return 'X'; return c.evts.filter(e =
 const libRdv = e => e.type === 'EM' ? 'Étude' : 'R' + e.num;
 function etudesSemaine(lundi) { const fin = addJours(lundi, 6); let n = 0; S.contacts.forEach(c => c.evts.forEach(e => { if (e.type === 'EM' && e.date >= lundi && e.date <= fin) n++; })); return n; }
 function etudesTotal() { let n = 0; S.contacts.forEach(c => c.evts.forEach(e => { if (e.type === 'EM' && e.fait) n++; })); return n; }
+/* Mes résultats : ce qui est planifié (à venir, pas encore fait) et ce qui a été mené */
+function evtsPlanifies(type) { const a = aujourdhui(), r = []; S.contacts.forEach(c => c.evts.forEach(e => { if (e.type === type && !e.fait && e.date >= a) r.push({ c, e }); })); return r.sort((x, y) => (x.e.date + (x.e.heure || '')).localeCompare(y.e.date + (y.e.heure || ''))); }
+function rdvFaits() { let n = 0; S.contacts.forEach(c => c.evts.forEach(e => { if (e.type === 'RDV' && e.fait) n++; })); return n; }
 const qualifies = () => S.contacts.filter(c => c.qualifie).length;
 /* Semaine type effective : celle du filleul s'il l'a modifiée, sinon le modèle. Chaque plage a une clé stable jour-début. */
 const cleplage = p => p.k || (p.j + '-' + p.d);
@@ -468,9 +568,9 @@ const TACHES = [
     visible: () => true,
     sous: () => { const n = etudesSemaine(lundiCourant()), c = cibleEtudes(); return [
       { id: 'sms', txt: `Envoyer mes ${c} SMS` },
-      { id: 'calees', txt: `Caler chaque étude avec sa date (${n}/${c})`, ok: () => n >= c }
+      { id: 'calees', txt: `Planifier chaque étude avec sa date (${n}/${c})`, ok: () => n >= c }
     ]; },
-    actions: () => '<button class="btn petit" data-act="nouvelle-etude">Caler une étude</button>' },
+    actions: () => '<button class="btn petit" data-act="nouvelle-etude">Planifier une étude</button>' },
   { cle: 'story', type: 'ponctuelle', axe: 'Développement', prio: 15,
     titre: () => 'Ma story',
     detail: () => 'Elle est faite quand ton parrain l’a validée.',
@@ -569,15 +669,14 @@ function jalon() {
   const a = aujourdhui();
   if (!S.profil.date3J) return { lib: 'Prochain jalon', titre: 'Fixer ma date des 3 Jours de la Réussite', compte: '', sous: '' };
   if (a <= fin3J()) { const j = diffJours(a, S.profil.date3J); return { lib: 'Prochain jalon', titre: '3 Jours de la Réussite, ' + fmtDate(S.profil.date3J, true), compte: j > 0 ? 'J-' + j : 'En cours', sous: j > 0 ? 'jours' : '' }; }
-  const fin60 = addJours(S.profil.date3J, 60), n = prospectsEngages().length;
-  if (a <= fin60 && n < 3) return { lib: 'Objectif des 60 jours', titre: '3 prospects engagés d’ici le ' + fmtDate(fin60, true), compte: n + ' / 3', sous: 'R1 tenus' };
+  /* Objectif « 3 prospects engagés en 60 jours » retiré (décision du 13/10/2026) */
   if (S.habilitation.dateQCM && a <= S.habilitation.dateQCM) { const j = diffJours(a, S.habilitation.dateQCM); return { lib: 'Prochain jalon', titre: 'QCM ' + (HABILITATIONS[S.habilitation.formation] || { lib: '' }).lib + ', ' + fmtDate(S.habilitation.dateQCM, true), compte: 'J-' + j, sous: 'jours' }; }
   const c = clients().length, p = palierSuivant(PALIERS_CLIENTS, c);
   return { lib: 'Prochain palier', titre: `Mes ${p} premiers clients`, compte: c + ' / ' + p, sous: 'clients' };
 }
 
 /* ===== Affichage ===== */
-const VUE = { onglet: 'semaine', lundi: null, filtre: 'tous', cherche: '', limite: 150, devFiltre: 'arelire', devCherche: '', devLimite: 100 };
+const VUE = { ouvertes: [], onglet: 'semaine', lundi: null, filtre: 'tous', cherche: '', limite: 150, devFiltre: 'arelire', devCherche: '', devLimite: 100 };
 /* L'onglet Développement est là dès le début (optionnel) ; Vers Manager s'ouvre après les 3 Jours. */
 const onglets = () => [['semaine', 'Ma semaine'], ['primo', 'Ma primo-liste'], ['developpement', 'Développement']].concat(apres3J() ? [['parcours', 'Vers Manager']] : []).concat([['chiffres', 'Mes chiffres'], ['reglages', 'Réglages']]);
 let TOAST_T = null;
@@ -592,7 +691,7 @@ function rendre() {
   const vues = { semaine: vueSemaine, primo: vuePrimo, developpement: vueDeveloppement, parcours: vueParcours, chiffres: vueChiffres, reglages: vueReglages };
   if (!vues[VUE.onglet] || !onglets().some(([k]) => k === VUE.onglet)) VUE.onglet = 'semaine';
   app.innerHTML = `<div class="page">
-    <header class="entete"><div class="marque">CAP<small>${esc(nomComplet({ prenom: S.profil.prenom, nom: S.profil.nom }))} · J+${jPlus()}${S.profil.parrain ? ' · parrain : ' + esc(nomComplet({ prenom: S.profil.parrain, nom: S.profil.parrainNom })) : ''}</small></div><div class="esp"></div></header>
+    <header class="entete"><div class="marque">CAP<small>${esc(nomComplet({ prenom: S.profil.prenom, nom: S.profil.nom }))} · ${jLabel()}${S.profil.parrain ? ' · parrain : ' + esc(nomComplet({ prenom: S.profil.parrain, nom: S.profil.parrainNom })) : ''}</small></div><div class="esp"></div></header>
     <nav class="onglets" role="tablist">${onglets().map(([k, l]) => `<button role="tab" aria-selected="${VUE.onglet === k}" data-onglet="${k}">${l}</button>`).join('')}</nav>
     <main class="pile">${vues[VUE.onglet]()}</main></div>`;
   if (VUE.onglet === 'primo') brancherDepot();
@@ -607,7 +706,7 @@ function vueAccueil() {
       <label class="champ">Mon nom<input type="text" name="nom" required autocomplete="family-name"></label></div>
       <div class="form"><label class="champ">Prénom de mon parrain<input type="text" name="parrain" required></label>
       <label class="champ">Nom de mon parrain<input type="text" name="parrainNom" required></label></div>
-      <label class="champ">Date de mon Atelier Démarrage<input type="date" name="dateAD" value="${aujourdhui()}"></label>
+      <label class="champ">Date de mon inscription dans le réseau<input type="date" name="dateInscription" value="${aujourdhui()}" required><span class="petit muted" style="font-weight:400">C’est le jour J0 de ton parcours. Tu peux déjà utiliser CAP avant.</span></label>
       <label class="champ">Mon rythme<select name="rythme"><option value="partage">Temps partagé</option><option value="plein">Temps plein</option></select></label>
       <div class="actions"><button class="btn" type="submit">Commencer</button><button class="btn discret" type="button" data-act="restaurer">J’ai déjà une sauvegarde</button></div>
     </form></div></div>`;
@@ -631,7 +730,7 @@ function vueVoyant() {
   const n = rdvAvance(), ok = n >= 3;
   return `<section class="carte voyant ${ok ? 'vert' : 'rouge'}"><span class="pt" aria-hidden="true"></span>
     <div style="flex:1"><b>${n} rendez-vous d’avance</b><div class="petit muted">${ok ? 'Le plancher de 3 est tenu.' : `Il en manque ${3 - n} pour tenir le plancher de 3.`}</div></div>
-    ${ok ? '' : '<div class="actions"><button class="btn petit" data-act="proposer" data-quoi="r1">Caler un créneau de prise de R1</button><button class="btn petit ligne" data-act="proposer" data-quoi="etude">Caler un créneau d’étude</button></div>'}</section>`;
+    ${ok ? '' : '<div class="actions"><button class="btn petit" data-act="proposer" data-quoi="r1">Planifier un créneau de prise de R1</button><button class="btn petit ligne" data-act="proposer" data-quoi="etude">Planifier un créneau d’étude</button></div>'}</section>`;
 }
 function champSous(t, s) {
   const id = `${t.cle}--${s.id}`;
@@ -650,10 +749,14 @@ function carteTache(t) {
     const auto = !!s.ok && !s.bascule;
     return `<label class="coche ${s.estOk ? 'fait' : ''}"><input type="checkbox" ${s.estOk ? 'checked' : ''} ${auto ? 'disabled' : ''} data-tache="${t.cle}" data-sous="${esc(s.id)}" ${h ? 'data-hebdo="1"' : ''} ${s.bascule ? `data-bascule="${s.bascule}"` : ''}><span>${esc(s.txt)}${s.lien ? ` · <a href="${s.lien}" target="_blank" rel="noopener">${esc(s.lienTxt)}</a>` : ''}</span></label>`;
   }).join('');
-  return `<article class="carte tache ${t.type}"><div class="type">${typeLib} · ${esc(t.axe)}</div><h3>${esc(t.titre())}</h3>
-    ${t.detail && t.detail() ? `<div class="petit muted">${esc(t.detail())}</div>` : ''}
-    ${j ? `<div class="jauge" role="img" aria-label="${esc(j.txt)}"><i style="width:${Math.round(Math.min(1, j.pct) * 100)}%"></i></div><div class="petit tnum"><b>${esc(j.txt)}</b></div>` : ''}
-    <div>${lignes}</div>${t.actions ? `<div class="pied">${t.actions()}</div>` : ''}</article>`;
+  const nOk = ss.filter(s => !s.champ && s.estOk).length, nTot = ss.filter(s => !s.champ).length;
+  const resume = j ? j.txt : nTot ? `${nOk} / ${nTot} fait${nOk > 1 ? 's' : ''}` : '';
+  const ouverte = VUE.ouvertes.includes(t.cle);
+  return `<details class="carte tache ${t.type}" data-cle="${t.cle}" ${ouverte ? 'open' : ''}><summary><div class="type">${typeLib} · ${esc(t.axe)}</div><h3>${esc(t.titre())}</h3>
+    ${j ? `<div class="jauge" role="img" aria-label="${esc(j.txt)}"><i style="width:${Math.round(Math.min(1, j.pct) * 100)}%"></i></div>` : ''}
+    ${resume ? `<div class="petit tnum resume"><b>${esc(resume)}</b><span class="ouvrir" aria-hidden="true"></span></div>` : `<div class="petit resume"><span class="ouvrir" aria-hidden="true"></span></div>`}</summary>
+    <div class="contenu">${t.detail && t.detail() ? `<div class="petit muted">${esc(t.detail())}</div>` : ''}
+    <div>${lignes}</div>${t.actions ? `<div class="pied">${t.actions()}</div>` : ''}</div></details>`;
 }
 function vueSemaine() {
   const act = tachesActives();
@@ -689,23 +792,25 @@ function vueAgenda() {
   }).join('');
   return `<section class="pile"><div class="semaine-nav"><h2 style="flex:1">Mon agenda</h2>
     <button class="btn petit discret" data-act="sem" data-pas="-7" aria-label="Semaine précédente">‹</button><span class="petit"><b>Semaine du ${fmtDate(l)}</b></span><button class="btn petit discret" data-act="sem" data-pas="7" aria-label="Semaine suivante">›</button></div>
-    <div class="actions"><button class="btn petit" data-act="nouveau-rdv">Caler un rendez-vous</button><button class="btn petit ligne" data-act="nouvelle-etude">Caler une étude</button><button class="btn petit discret" data-act="ics-semaine">Ajouter la semaine à mon agenda (.ics)</button></div>
+    <div class="actions"><button class="btn petit" data-act="nouveau-rdv">Planifier un rendez-vous</button><button class="btn petit ligne" data-act="nouvelle-etude">Planifier une étude</button><button class="btn petit discret" data-act="ics-semaine">Ajouter la semaine à mon agenda (.ics)</button></div>
     <div class="jours">${html}</div></section>`;
 }
 
 /* ---- Ma primo-liste ---- */
+const universCourt = c => c.univers ? (c.univers === UNIVERS_MER && c.misEnRelationPar ? 'mis en relation par ' + c.misEnRelationPar : c.univers) : '';
+const texteContact = c => [nomComplet(c), c.univers, c.misEnRelationPar, libMetier(c.metier), c.metierTexte, c.commentaire].filter(Boolean).join(' ');
 function vuePrimo() {
   const n = nbContacts(), pro = S.contacts.filter(c => statutContact(c) === 'prospect').length, cli = clients().length;
   const F = { tous: () => true, aqualifier: c => !c.qualifie && statutContact(c) === 'contact', qualifies: c => c.qualifie, prospects: c => statutContact(c) === 'prospect', clients: c => statutContact(c) === 'client' };
   const q = norm(VUE.cherche);
-  const liste = S.contacts.filter(F[VUE.filtre] || F.tous).filter(c => !q || norm(nomComplet(c) + ' ' + (c.metier || '') + ' ' + (c.lien || '')).includes(q))
+  const liste = S.contacts.filter(F[VUE.filtre] || F.tous).filter(c => !q || norm(texteContact(c)).includes(q))
     .sort((a, b) => norm(a.prenom + a.nom).localeCompare(norm(b.prenom + b.nom)));
   const filtres = [['tous', 'Tous'], ['aqualifier', 'À qualifier'], ['qualifies', 'Qualifiés'], ['prospects', 'Prospects'], ['clients', 'Clients']];
   const lignes = liste.slice(0, VUE.limite).map(c => {
     const st = statutContact(c), proch = c.evts.filter(e => !e.fait && e.date >= aujourdhui()).sort((x, y) => (x.date + x.heure).localeCompare(y.date + y.heure))[0];
-    return `<div class="contact"><div><span class="nom">${esc(nomComplet(c))}</span>${st !== 'contact' ? `<span class="badge ${st}">${st === 'client' ? 'CLIENT' : 'PROSPECT'}</span>` : ''}${c.qualifie && st === 'contact' ? '<span class="badge qualifie">Qualifié</span>' : ''}${c.potentiel ? '<span class="badge dev">À contacter pour JD</span>' : ''}
-      <div class="meta">${[c.metier, c.lien, c.marche ? 'marché ' + c.marche : '', c.impot ? 'impôt : ' + c.impot : '', proch ? `${libRdv(proch)} le ${fmtDate(proch.date)}${proch.heure ? ' à ' + proch.heure : ''}` : ''].filter(Boolean).map(esc).join(' · ')}</div></div>
-      <div class="actions">${st === 'contact' ? `<button class="btn petit ${c.qualifie ? 'discret' : 'ligne'}" data-act="qualif" data-c="${c.id}">${c.qualifie ? 'Qualifié' : 'Qualifier'}</button>` : ''}<button class="btn petit discret" data-act="fiche" data-c="${c.id}">Ouvrir</button></div></div>`;
+    return `<div class="contact"><div><span class="nom">${esc(nomComplet(c))}</span>${st !== 'contact' ? `<span class="badge ${st}">${st === 'client' ? 'CLIENT' : 'PROSPECT'}</span>` : ''}${c.qualifie && st === 'contact' ? '<span class="badge qualifie">Qualifié</span>' : ''}${c.rdvClient && st === 'contact' ? '<span class="badge rdv">À prendre en RDV</span>' : ''}${c.potentiel ? '<span class="badge dev">À contacter pour JD</span>' : ''}
+      <div class="meta">${[universCourt(c), libMetier(c.metier), c.impot ? 'impôt ' + c.impot : '', proch ? `${libRdv(proch)} le ${fmtDate(proch.date)}${proch.heure ? ' à ' + proch.heure : ''}` : ''].filter(Boolean).map(esc).join(' · ')}</div></div>
+      <div class="actions">${st === 'contact' ? `<button class="btn petit ${c.qualifie ? 'discret' : 'ligne'}" data-act="qualif" data-c="${c.id}">${c.qualifie ? 'Qualification' : 'Qualifier'}</button>` : ''}<button class="btn petit discret" data-act="fiche" data-c="${c.id}">Ouvrir</button></div></div>`;
   }).join('');
   return `<section class="grille">
       <div class="carte kpi"><div class="lib">Noms dans ma primo-liste</div><div class="val">${nf(n)}</div><div class="petit muted">Palier suivant : ${palierSuivant(PALIERS_PRIMO, n)}</div></div>
@@ -713,7 +818,7 @@ function vuePrimo() {
       <div class="carte kpi"><div class="lib">Prospects</div><div class="val">${nf(pro)}</div></div>
       <div class="carte kpi"><div class="lib">Clients</div><div class="val">${nf(cli)}</div></div></section>
     <section class="carte pile"><h2>Importer mon fichier</h2>
-      <div class="depot" id="zone-depot" tabindex="0" role="button">Dépose ici ton fichier Excel ou CSV de l’Atelier, ou clique pour le choisir.<br><span class="petit">Les noms déjà présents ne sont pas dupliqués.</span></div>
+      <div class="depot" id="zone-depot" tabindex="0" role="button">Dépose ici ton fichier Excel ou CSV de l’Atelier, déjà qualifié ou non, ou clique pour le choisir.<br><span class="petit">Les noms déjà présents ne sont pas dupliqués ; le métier en clair est rangé dans sa grande famille.</span></div>
       <input type="file" id="fichier-primo" accept=".xlsx,.xls,.xlsm,.ods,.csv,.txt" hidden></section>
     <section class="carte pile"><div class="outils"><input type="search" id="cherche" placeholder="Chercher un nom, un métier…" value="${esc(VUE.cherche)}" aria-label="Chercher"><button class="btn petit" data-act="nouveau-contact">Ajouter un nom</button></div>
       <div class="filtres">${filtres.map(([k, l]) => `<button aria-pressed="${VUE.filtre === k}" data-filtre="${k}">${l}</button>`).join('')}</div>
@@ -728,10 +833,10 @@ function vueDeveloppement() {
   const reperes = S.contacts.filter(c => c.potentiel).length;
   const q = norm(VUE.devCherche);
   const F = { arelire: c => !c.potentiel, reperes: c => !!c.potentiel };
-  const liste = S.contacts.filter(F[VUE.devFiltre] || F.arelire).filter(c => !q || norm(nomComplet(c) + ' ' + (c.metier || '') + ' ' + (c.lien || '')).includes(q))
+  const liste = S.contacts.filter(F[VUE.devFiltre] || F.arelire).filter(c => !q || norm(texteContact(c)).includes(q))
     .sort((x, y) => norm(x.prenom + x.nom).localeCompare(norm(y.prenom + y.nom)));
   const lignes = liste.slice(0, VUE.devLimite).map(c => `<div class="contact"><div><span class="nom">${esc(nomComplet(c))}</span>${statutContact(c) !== 'contact' ? `<span class="badge ${statutContact(c)}">${statutContact(c) === 'client' ? 'CLIENT' : 'PROSPECT'}</span>` : ''}
-      <div class="meta">${[c.metier, c.lien].filter(Boolean).map(esc).join(' · ')}</div></div>
+      <div class="meta">${[libMetier(c.metier), universCourt(c)].filter(Boolean).map(esc).join(' · ')}</div></div>
       <div class="actions"><button class="btn petit ${c.potentiel ? 'discret' : 'ligne'}" data-act="potentiel" data-c="${c.id}">${c.potentiel ? 'Retirer' : 'À contacter pour JD'}</button></div></div>`).join('');
   return `<p class="petit muted">Le développement, c'est proposer le métier. Cet onglet est là dès le début, à ton rythme.</p>
     <section class="grille">
@@ -753,11 +858,15 @@ function vueDeveloppement() {
 function vueParcours() {
   const nv = niveauForman(), objs = objectifsEvalues(), ok = objs.filter(o => o.ok).length, cli = clients().length;
   const choix = `<label class="champ petit" for="statut">Mon statut FORMAN actuel<select id="statut" data-cible="profil.statut">${PARCOURS_FORMAN.map(n => `<option value="${n.statut}" ${nv.statut === n.statut ? 'selected' : ''}>${n.lib}</option>`).join('')}</select></label>`;
-  const lignes = objs.map(o => `<label class="coche ${o.ok ? 'fait' : ''}"><input type="checkbox" ${o.ok ? 'checked' : ''} ${o.auto && o.ok && !(S.parcours[o.id] && S.parcours[o.id].fait) ? 'disabled' : ''} data-parcours="${o.id}"><span>${esc(o.txt)}${o.auto ? ' <span class="petit muted">· suivi par CAP</span>' : ''}</span></label>`).join('');
+  const ligne = o => `<label class="coche ${o.ok ? 'fait' : ''}"><input type="checkbox" ${o.ok ? 'checked' : ''} ${o.auto && o.ok && !(S.parcours[o.id] && S.parcours[o.id].fait) ? 'disabled' : ''} data-parcours="${o.id}"><span>${esc(o.txt)}${o.auto ? ' <span class="petit muted">· suivi par CAP</span>' : ''}</span></label>`;
+  /* Même principe que les tâches : 3 objectifs à la fois ; un objectif atteint dévoile le suivant. */
+  const restants = objs.filter(o => !o.ok), atteints = objs.filter(o => o.ok);
+  const prochains = restants.slice(0, 3), ensuite = restants.slice(3);
   const objectifs = nv.objectifs.length ? `<section class="carte pile"><h2>De ${nv.lib} vers ${nv.vers}</h2>
-      <div class="jauge" role="img" aria-label="${ok} objectifs sur ${objs.length}"><i style="width:${Math.round(ok / objs.length * 100)}%"></i></div><div class="petit tnum"><b>${ok} / ${objs.length} objectifs</b></div>
-      <div class="petit muted">Les objectifs « suivis par CAP » se cochent seuls d’après tes données ; les autres, c’est toi qui les coches quand c’est fait.</div>
-      <div>${lignes}</div></section>` : '<section class="carte"><h2>Manager</h2><div class="petit muted">Cap atteint. Les paliers de VA continuent ci-dessous.</div></section>';
+      <div class="jauge" role="img" aria-label="${ok} objectifs sur ${objs.length}"><i style="width:${Math.round(ok / objs.length * 100)}%"></i></div><div class="petit tnum"><b>${ok} / ${objs.length} objectifs atteints</b></div>
+      ${prochains.length ? `<h3 class="sous-titre">${prochains.length > 1 ? 'Mes ' + prochains.length + ' prochains objectifs' : 'Mon dernier objectif'}</h3><div>${prochains.map(ligne).join('')}</div>` : `<div class="petit">Tous les objectifs sont atteints : passe ton statut à ${nv.vers} ci-dessus.</div>`}
+      ${ensuite.length ? `<details class="repli"><summary>Les ${ensuite.length} suivants</summary><div>${ensuite.map(ligne).join('')}</div></details>` : ''}
+      ${atteints.length ? `<details class="repli"><summary>Déjà atteints (${atteints.length})</summary><div>${atteints.map(ligne).join('')}</div></details>` : ''}</section>` : '<section class="carte"><h2>Manager</h2><div class="petit muted">Cap atteint. Les paliers de VA continuent ci-dessous.</div></section>';
   return `<section class="carte pile"><div class="form">${choix}</div></section>${objectifs}
     <h2>Mes paliers</h2><section class="grille">
       <div class="carte kpi"><div class="lib">Clients</div><div class="val">${cli}</div>${jaugeGlissante(PALIERS_CLIENTS, cli, 'clients')}</div>
@@ -775,14 +884,15 @@ function jaugeGlissante(paliers, val, unite) {
 }
 function vueChiffres() {
   const n = nbContacts(), es = etudesSemaine(lundiCourant()), serie = semainesActives(), cli = clients().length;
-  const reg = [2, 3, 5, 10].map(k => `<span class="medaille ${serie >= k ? 'ok' : ''}">${k} semaines d’affilée</span>`).join('');
-  const engages = prospectsEngages().length;
+  const rdvP = evtsPlanifies('RDV'), emP = evtsPlanifies('EM');
+  const reg =[2, 3, 5, 10].map(k => `<span class="medaille ${serie >= k ? 'ok' : ''}">${k} semaines d’affilée</span>`).join('');
   return `<h2>Mon effort</h2><section class="grille">
       <div class="carte kpi"><div class="lib">Primo-liste</div><div class="val">${nf(n)} <span class="petit muted">/ 500</span></div>${jaugeGlissante(PALIERS_PRIMO, n, 'noms')}</div>
       <div class="carte kpi"><div class="lib">Études de marché cette semaine</div><div class="val">${es} <span class="petit muted">/ ${cibleEtudes()}</span></div><div class="petit muted">${etudesTotal()} menées au total</div></div>
       <div class="carte kpi"><div class="lib">Semaines actives d’affilée</div><div class="val">${serie}</div><div class="badges">${reg}</div></div></section>
     <h2>Mes résultats</h2><section class="grille">
-      ${apres3J() ? `<div class="carte kpi"><div class="lib">Prospects engagés (R1 tenus)</div><div class="val">${engages} <span class="petit muted">/ 3</span></div><div class="petit muted">Objectif d’ici le ${fmtDate(addJours(S.profil.date3J, 60))}</div></div>` : ''}
+      <div class="carte kpi"><div class="lib">Rendez-vous planifiés</div><div class="val">${rdvP.length}</div><div class="petit muted">${rdvP.length ? `Prochain : ${libRdv(rdvP[0].e)} avec ${esc(nomCourt(rdvP[0].c))} ${fmtDate(rdvP[0].e.date, true)}${rdvP[0].e.heure ? ' à ' + rdvP[0].e.heure : ''}. ` : ''}${rdvFaits()} fait${rdvFaits() > 1 ? 's' : ''} au total.</div></div>
+      <div class="carte kpi"><div class="lib">Études de marché planifiées</div><div class="val">${emP.length}</div><div class="petit muted">${emP.length ? `Prochaine : ${esc(nomCourt(emP[0].c))} ${fmtDate(emP[0].e.date, true)}${emP[0].e.heure ? ' à ' + emP[0].e.heure : ''}. ` : ''}${etudesTotal()} menée${etudesTotal() > 1 ? 's' : ''} au total.</div></div>
       <div class="carte kpi"><div class="lib">Clients</div><div class="val">${cli}</div>${jaugeGlissante(PALIERS_CLIENTS, cli, 'clients')}</div>
       <div class="carte kpi"><div class="lib">Volume d’affaires</div>${cli >= 10 ? '<div class="petit muted">Import de la fiche de rémunération : prochaine version.</div>' : '<div class="petit muted">S’affiche à ton 10e client.</div>'}</div></section>`;
 }
@@ -796,7 +906,7 @@ function vueReglages() {
       <label class="champ">Prénom de mon parrain<input type="text" name="parrain" value="${esc(p.parrain)}"></label>
       <label class="champ">Nom de mon parrain<input type="text" name="parrainNom" value="${esc(p.parrainNom || '')}"></label>
       <label class="champ">Mon rythme<select name="rythme"><option value="partage" ${p.rythme === 'partage' ? 'selected' : ''}>Temps partagé</option><option value="plein" ${p.rythme === 'plein' ? 'selected' : ''}>Temps plein</option></select></label>
-      <label class="champ">Date de mon Atelier Démarrage<input type="date" name="dateAD" value="${esc(p.dateAD)}"></label>
+      <label class="champ">Date de mon inscription dans le réseau (J0)<input type="date" name="dateInscription" value="${esc(p.dateInscription)}" required></label>
       <label class="champ">Premier jour de mes 3 Jours<input type="date" name="date3J" value="${esc(p.date3J)}"></label>
       <div class="actions" style="align-self:end"><button class="btn" type="submit">Enregistrer</button></div></form>
       <div class="petit muted">Semaine type : ${(S.modele[p.rythme] && S.modele[p.rythme].length) || Object.keys(S.exceptions).length ? 'tu l’as modifiée dans ton agenda.' : 'celle de ton rythme, telle quelle.'} <button class="btn petit discret" data-act="semaine-origine">Remettre la semaine type d’origine</button></div></section>
@@ -824,35 +934,74 @@ function fenetre(titre, corps, boutons) {
 }
 const champ = (lib, nom, val, type, extra) => `<label class="champ">${lib}<input type="${type || 'text'}" name="${nom}" value="${esc(val || '')}" ${extra || ''}></label>`;
 const choix = (lib, nom, val, options) => `<label class="champ">${lib}<select name="${nom}">${options.map(([v, l]) => `<option value="${v}" ${(val || '') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>`;
-/* Champs de la fiche = colonnes du « Tableau primoliste » de l'Atelier Démarrage (AD - Tableau primoliste.xlsx) */
-const CHAMPS_CONTACT = ['prenom', 'nom', 'marche', 'age', 'situation', 'metier', 'proprio', 'impot', 'insatisf', 'lien', 'relationnel', 'tel', 'email', 'commentaire'];
+/* Fiche d'un nom (décisions du 13/10/2026) :
+   - ajout = prénom + nom (facultatif) + univers de la primo-liste, rien d'autre ; univers « Mis en relation » = avec la personne qui a mis en relation
+   - qualification = âge, situation familiale, grande famille de métier, propriétaire RP, niveau d'impôt 1 à 3, téléphone, mail
+   Les colonnes du « Tableau primoliste » importées mais hors qualification (marché, insatisfaction, relationnel) sont conservées sans être affichées. */
+const CHAMPS_IDENTITE = ['prenom', 'nom', 'univers', 'misEnRelationPar'];
+const CHAMPS_QUALIF = ['age', 'situation', 'metier', 'proprio', 'impot', 'tel', 'email', 'commentaire'];
+const CHAMPS_IMPORT = ['marche', 'insatisf', 'relationnel', 'metierTexte'];
+const CRITERES_QUALIF = ['age', 'situation', 'metier', 'proprio', 'impot']; // au moins un critère renseigné = nom qualifié (import d'une liste déjà qualifiée, fiche)
+const CHAMPS_CONTACT = CHAMPS_IDENTITE.concat(CHAMPS_QUALIF, CHAMPS_IMPORT);
 
 /* ---- Contacts ---- */
 const trouverContact = id => S.contacts.find(c => c.id === id);
 function creerContact(d, source) {
-  const c = { id: uid(), qualifie: !!d.qualifie, potentiel: !!d.potentiel, source: source || 'manuel', ajoute: aujourdhui(), evts: [], signeLe: '' };
+  const c = { id: uid(), qualifie: !!d.qualifie, rdvClient: !!d.rdvClient, potentiel: !!d.potentiel, source: source || 'manuel', ajoute: aujourdhui(), evts: [], signeLe: '' };
   CHAMPS_CONTACT.forEach(k => { c[k] = k === 'prenom' ? capital(d[k]) : String(d[k] || '').trim(); });
+  if (c.univers !== UNIVERS_MER) c.misEnRelationPar = '';
   S.contacts.push(c); return c;
+}
+const datalistNoms = (id, sauf) => `<datalist id="${id}">${S.contacts.filter(x => x !== sauf).slice(0, 2000).map(x => `<option value="${esc(nomComplet(x))}">`).join('')}</datalist>`;
+function champsIdentite(c, nouveau) {
+  const u = c.univers || '';
+  /* l'univers est demandé à l'ajout ; sur une fiche existante (nom importé sans univers, ajouté depuis un rendez-vous) il reste facultatif */
+  return `<div class="form">${champ('Prénom', 'prenom', c.prenom, 'text', 'required')}${champ('Nom (facultatif)', 'nom', c.nom)}</div>
+    <div class="form"><label class="champ">Univers<select name="univers" ${nouveau ? 'required' : ''}><option value="">Choisir…</option>${UNIVERS.map(([n]) => `<option value="${esc(n)}" ${u === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label>
+      <label class="champ" id="champ-mer" ${u === UNIVERS_MER ? '' : 'hidden'}>Mis en relation par<input type="text" name="misEnRelationPar" list="dl-mer" value="${esc(c.misEnRelationPar || '')}" placeholder="Prénom Nom"></label>${datalistNoms('dl-mer', c)}</div>
+    <div class="petit muted" id="piste-univers">${esc(pisteUnivers(u))}</div>`;
+}
+const pisteUnivers = u => { const x = UNIVERS.find(v => v[0] === u); return x ? x[1] : 'Choisis où tu connais cette personne : ça aide à faire remonter d’autres noms.'; };
+function champsQualif(c) {
+  return `<div class="form">${champ('Âge', 'age', c.age, 'number', 'min="16" max="110" inputmode="numeric"')}${choix('Situation familiale', 'situation', c.situation, [['', '—']].concat(SITUATIONS))}
+      <label class="champ">Métier (grande famille)<select name="metier"><option value="">—</option>${METIERS.map(m => `<option value="${m.id}" ${c.metier === m.id ? 'selected' : ''}>${esc(m.lib)}</option>`).join('')}</select>${c.metierTexte ? `<span class="petit muted" style="font-weight:400">Dans ton fichier : « ${esc(c.metierTexte)} »</span>` : ''}</label>
+      ${choix('Propriétaire de sa résidence principale', 'proprio', c.proprio, [['', '—'], ['oui', 'Oui'], ['non', 'Non']])}${choix('Niveau d’impôt', 'impot', c.impot, [['', '—']].concat(IMPOTS))}
+      ${champ('Téléphone', 'tel', c.tel, 'tel')}${champ('Mail', 'email', c.email, 'email')}</div>
+    <div class="form"><label class="coche"><input type="checkbox" name="rdvClient" ${c.rdvClient ? 'checked' : ''}><span>À prendre en rendez-vous client</span></label><label class="coche"><input type="checkbox" name="potentiel" ${c.potentiel ? 'checked' : ''}><span>À contacter pour JD (pourrait faire le métier)</span></label></div>
+    <label class="champ">Commentaire<textarea name="commentaire" rows="2">${esc(c.commentaire || '')}</textarea></label>`;
+}
+function lireChamps(c, data, cles) { cles.forEach(k => { if (data[k] !== undefined) c[k] = k === 'prenom' ? capital(data[k]) : String(data[k]).trim(); }); if (c.univers !== UNIVERS_MER) c.misEnRelationPar = ''; }
+function brancherUnivers() {
+  const d = $('#dlg'), sel = $('select[name=univers]', d); if (!sel) return;
+  sel.addEventListener('change', () => { const mer = $('#champ-mer', d), p = $('#piste-univers', d); if (mer) mer.hidden = sel.value !== UNIVERS_MER; if (p) p.textContent = pisteUnivers(sel.value); });
+}
+/* Qualifier un nom : la fiche de qualification seule ; enregistrer = qualifié */
+async function formQualif(c) {
+  const attente = fenetre('Qualifier ' + nomComplet(c), `<div class="petit muted">${esc(universCourt(c) || 'Univers non renseigné')}</div>${champsQualif(c)}`, [{ lib: 'Annuler', v: 'annuler', cls: 'discret' }, { lib: 'Enregistrer', v: 'ok' }]);
+  const r = await attente;
+  if (r.v !== 'ok') return;
+  lireChamps(c, r.data, CHAMPS_QUALIF);
+  c.rdvClient = r.data.rdvClient === 'on'; c.potentiel = r.data.potentiel === 'on';
+  if (!c.qualifie) { c.qualifie = true; c.qualifieLe = aujourdhui(); }
+  maj(); toast(nomCourt(c) + ' qualifié');
 }
 async function formContact(c) {
   const nouveau = !c; c = c || {};
   const evts = nouveau ? '' : `<div class="pile"><h3>Étapes</h3>${c.evts.length ? c.evts.slice().sort((a, b) => (a.date + a.heure).localeCompare(b.date + b.heure)).map(e => `<div class="petit"><span class="puce ${e.type === 'EM' ? 'em' : e.num === 'X' ? 'rx' : ''}">${libRdv(e)}</span>${fmtDate(e.date, true)} ${esc(e.heure || '')} ${e.fait ? '· fait' : ''}</div>`).join('') : '<div class="petit muted">Aucune étape pour l’instant.</div>'}
     ${c.signeLe ? `<div class="petit"><span class="badge client">CLIENT</span> solution signée le ${fmtDate(c.signeLe)}</div>` : ''}</div>`;
-  const corps = `<div class="form">${champ('Prénom', 'prenom', c.prenom, 'text', 'required')}${champ('Nom', 'nom', c.nom)}
-      ${choix('Marché', 'marche', c.marche, [['', '—'], ['chaud', 'Chaud'], ['froid', 'Froid']])}${champ('Âge', 'age', c.age)}${champ('Situation familiale', 'situation', c.situation)}${champ('Métier', 'metier', c.metier)}
-      ${choix('Propriétaire RP', 'proprio', c.proprio, [['', '—'], ['oui', 'Oui'], ['non', 'Non']])}${champ('Niveau d’impôt', 'impot', c.impot)}${champ('Insatisfaction métier', 'insatisf', c.insatisf)}
-      ${champ('Lien', 'lien', c.lien)}${champ('Relationnel', 'relationnel', c.relationnel)}${champ('Téléphone', 'tel', c.tel, 'tel')}${champ('Mail', 'email', c.email, 'email')}</div>
-    <div class="form"><label class="coche"><input type="checkbox" name="qualifie" ${c.qualifie ? 'checked' : ''} ${c.signeLe || (c.evts || []).some(e => e.type === 'RDV') ? 'disabled' : ''}><span>À prendre RDV client (qualifié)</span></label><label class="coche"><input type="checkbox" name="potentiel" ${c.potentiel ? 'checked' : ''}><span>À contacter pour JD (pourrait faire le métier)</span></label></div>
-    <label class="champ">Commentaire<textarea name="commentaire" rows="2">${esc(c.commentaire || '')}</textarea></label>${evts}`;
+  const corps = nouveau ? champsIdentite(c, true)
+    : `${champsIdentite(c)}<h3>Qualification${c.qualifie ? ' <span class="badge qualifie">Qualifié</span>' : ''}</h3>${champsQualif(c)}${evts}`;
   const btns = nouveau ? [{ lib: 'Annuler', v: 'annuler', cls: 'discret' }, { lib: 'Ajouter', v: 'ok' }]
-    : [{ lib: 'Supprimer', v: 'suppr', cls: 'discret' }, { lib: 'Caler une étude', v: 'em', cls: 'ligne' }, { lib: `Caler un ${c.signeLe ? 'RX' : 'R' + prochainNumero(c)}`, v: 'rdv', cls: 'ligne' }, ...(c.signeLe ? [] : [{ lib: 'Solution signée', v: 'signe', cls: 'ligne' }]), { lib: 'Enregistrer', v: 'ok' }];
-  const r = await fenetre(nouveau ? 'Ajouter un nom' : nomComplet(c), corps, btns);
+    : [{ lib: 'Supprimer', v: 'suppr', cls: 'discret' }, { lib: 'Planifier une étude', v: 'em', cls: 'ligne' }, { lib: `Planifier un ${c.signeLe ? 'RX' : 'R' + prochainNumero(c)}`, v: 'rdv', cls: 'ligne' }, ...(c.signeLe ? [] : [{ lib: 'Solution signée', v: 'signe', cls: 'ligne' }]), { lib: 'Enregistrer', v: 'ok' }];
+  const attente = fenetre(nouveau ? 'Ajouter un nom' : nomComplet(c), corps, btns);
+  brancherUnivers();
+  const r = await attente;
   if (r.v === 'annuler') return;
   if (nouveau) { if (r.v === 'ok') { creerContact(r.data, 'manuel'); maj(); toast('Ajouté à ta primo-liste'); } return; }
   if (r.v === 'suppr') { const ok = await fenetre('Supprimer ' + nomComplet(c) + ' ?', '<p>Le nom et ses étapes seront retirés de ta primo-liste.</p>', [{ lib: 'Annuler', v: 'annuler', cls: 'discret' }, { lib: 'Supprimer', v: 'ok' }]); if (ok.v === 'ok') { S.contacts = S.contacts.filter(x => x.id !== c.id); maj(); } return; }
-  CHAMPS_CONTACT.forEach(k => { if (r.data[k] !== undefined) c[k] = k === 'prenom' ? capital(r.data[k]) : String(r.data[k]).trim(); });
-  if (!c.signeLe && !c.evts.some(e => e.type === 'RDV')) c.qualifie = r.data.qualifie === 'on';
-  c.potentiel = r.data.potentiel === 'on';
+  lireChamps(c, r.data, CHAMPS_IDENTITE.concat(CHAMPS_QUALIF));
+  c.rdvClient = r.data.rdvClient === 'on'; c.potentiel = r.data.potentiel === 'on';
+  if (!c.qualifie && CRITERES_QUALIF.some(k => c[k])) { c.qualifie = true; c.qualifieLe = aujourdhui(); }
   if (r.v === 'em') return formEvt({ contact: c, type: 'EM' });
   if (r.v === 'rdv') return formEvt({ contact: c, type: 'RDV' });
   if (r.v === 'signe') return formSignature(c);
@@ -864,6 +1013,49 @@ async function formSignature(c) {
   c.signeLe = r.data.date; maj(); toast(nomCourt(c) + ' est client');
 }
 
+/* ---- Prochaines plages libres (5) pour planifier un rendez-vous ou une étude ----
+   Cherche dans les créneaux de la semaine type (et ceux ajoutés) du bon type, en sautant ce qui est déjà pris et ce qui est passé. */
+const enMin = h => { const [a, b] = String(h || '').split(':').map(Number); return (a || 0) * 60 + (b || 0); };
+const enHeure = m => pad(Math.floor(m / 60)) + ':' + pad(m % 60);
+function prochainesPlages(type, duree, n) {
+  n = n || 5; duree = Number(duree) || (type === 'EM' ? 30 : 60);
+  const bon = lib => { const l = norm(lib); return type === 'EM' ? l.includes('etude') && !l.includes('sms') : l.includes('rendez'); };
+  const maint = new Date(), minNow = maint.getHours() * 60 + maint.getMinutes();
+  const libre = (date, t, occ, deja) => !occ.some(([a, b]) => t < b && t + duree > a) && !deja.some(x => x.date === date && Math.abs(enMin(x.heure) - t) < duree);
+  const occupe = date => evtsDuJour(date).filter(({ e }) => e.heure).map(({ e }) => { const a = enMin(e.heure); return [a, a + (Number(e.duree) || 60)]; });
+  const r = [];
+  for (let k = 0; k < 42 && r.length < n; k++) {
+    const date = addJours(aujourdhui(), k), occ = occupe(date); let parJour = 0;
+    plagesDuJour(date).filter(p => bon(p.lib)).sort((a, b) => a.d.localeCompare(b.d)).forEach(p => {
+      for (let t = enMin(p.d); t + duree <= enMin(p.f) && r.length < n && parJour < 3; t += duree) {
+        if (k === 0 && t <= minNow) continue;
+        if (libre(date, t, occ, r)) { r.push({ date, heure: enHeure(t) }); parJour++; }
+      }
+    });
+  }
+  /* Pas de créneau de ce type dans la semaine type (avant les 3 Jours par exemple) : soirs de semaine */
+  const hDef = enMin(S.profil.rythme === 'plein' ? '14:00' : '18:30');
+  for (let k = 1; k < 21 && r.length < n; k++) {
+    const date = addJours(aujourdhui(), k); if (jourSemaine(date) > 5) continue;
+    const occ = occupe(date).concat(plagesDuJour(date).map(p => [enMin(p.d), enMin(p.f)]));
+    if (libre(date, hDef, occ, r)) r.push({ date, heure: enHeure(hDef) });
+  }
+  return r.sort((a, b) => (a.date + a.heure).localeCompare(b.date + b.heure));
+}
+function puces(plages) {
+  if (!plages.length) return '';
+  return `<div class="plages-libres"><div class="petit muted">Prochaines plages libres</div><div class="puces-plages">${plages.map((p, i) => `<button type="button" class="puce-plage" aria-pressed="${i === 0}" data-pdate="${p.date}" data-pheure="${p.heure}" ${p.fin ? `data-pfin="${p.fin}"` : ''}>${capital(fmtDate(p.date, true))} · ${p.heure}${p.fin ? '–' + p.fin : ''}</button>`).join('')}</div></div>`;
+}
+function brancherPuces(champDate, champHeure) {
+  const d = $('#dlg');
+  $$('.puce-plage', d).forEach(b => b.addEventListener('click', () => {
+    $$('.puce-plage', d).forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    const fd = $(`input[name=${champDate}]`, d), fh = $(`input[name=${champHeure}]`, d);
+    if (fd) fd.value = b.dataset.pdate; if (fh) fh.value = b.dataset.pheure;
+    if (fh && b.dataset.pfin) { const ff = $('input[name=f]', d); if (ff) ff.value = b.dataset.pfin; }
+  }));
+}
+
 /* ---- Études de marché et rendez-vous ---- */
 async function formEvt(o) {
   o = o || {};
@@ -873,11 +1065,15 @@ async function formEvt(o) {
   const datalist = `<datalist id="dl-noms">${S.contacts.slice(0, 2000).map(x => `<option value="${esc(nomComplet(x))}">`).join('')}</datalist>`;
   const qui = c ? `<p><b>${esc(nomComplet(c))}</b> · ${type === 'EM' ? 'étude de marché' : (c.signeLe ? 'RX, rendez-vous de suivi' : 'R' + (e.num || prochainNumero(c)))}</p>`
     : `<label class="champ">Avec qui<input name="qui" list="dl-noms" required placeholder="Prénom Nom"></label>${datalist}<div class="petit muted">Si la personne n’est pas dans ta primo-liste, elle y est ajoutée automatiquement.</div>`;
-  const corps = `${qui}<div class="form">${champ('Date', 'date', e.date || o.date || aujourdhui(), 'date', 'required')}${champ('Heure', 'heure', e.heure || '', 'time')}${champ('Durée (min)', 'duree', e.duree || (type === 'EM' ? 30 : 60), 'number', 'min="15" step="15"')}</div>
+  const libres = o.evt ? [] : prochainesPlages(type, type === 'EM' ? 30 : 60);
+  const p0 = !o.date && libres[0] ? libres[0] : {};
+  const corps = `${qui}${puces(o.date ? [] : libres)}<div class="form">${champ('Date', 'date', e.date || o.date || p0.date || aujourdhui(), 'date', 'required')}${champ('Heure', 'heure', e.heure || p0.heure || '', 'time')}${champ('Durée (min)', 'duree', e.duree || (type === 'EM' ? 30 : 60), 'number', 'min="15" step="15"')}</div>
     ${type === 'RDV' ? champ('Lien de visio (Zoom, Meet…)', 'visio', e.visio, 'url', 'placeholder="https://"') : ''}<label class="champ">Note<input type="text" name="note" value="${esc(e.note || '')}"></label>`;
   const btns = o.evt ? [{ lib: 'Supprimer', v: 'suppr', cls: 'discret' }, ...(type === 'EM' && !c.evts.some(x => x.type === 'RDV') ? [{ lib: 'Transformer en R1', v: 'r1', cls: 'ligne' }] : []), { lib: 'Enregistrer', v: 'ok' }]
-    : [{ lib: 'Annuler', v: 'annuler', cls: 'discret' }, { lib: 'Caler', v: 'ok' }];
-  const r = await fenetre(o.evt ? 'Modifier' : (type === 'EM' ? 'Caler une étude de marché' : 'Caler un rendez-vous'), corps, btns);
+    : [{ lib: 'Annuler', v: 'annuler', cls: 'discret' }, { lib: 'Planifier', v: 'ok' }];
+  const attente = fenetre(o.evt ? 'Modifier' : (type === 'EM' ? 'Planifier une étude de marché' : 'Planifier un rendez-vous'), corps, btns);
+  brancherPuces('date', 'heure');
+  const r = await attente;
   if (r.v === 'annuler') return;
   if (o.evt && r.v === 'suppr') { c.evts = c.evts.filter(x => x.id !== e.id); maj(); return; }
   let cible = c;
@@ -893,16 +1089,26 @@ async function formEvt(o) {
   maj();
   if (o.evt && r.v === 'r1') formEvt({ contact: cible, evt: cible.evts[cible.evts.length - 1] });
 }
-function basculerFait(cId, eId) { const c = trouverContact(cId); const e = c && c.evts.find(x => x.id === eId); if (!e) return; e.fait = !e.fait; maj(); if (e.fait && e.type === 'RDV' && !c.signeLe) toast(`${libRdv(e)} fait. Pense à caler le suivant.`); }
+function basculerFait(cId, eId) { const c = trouverContact(cId); const e = c && c.evts.find(x => x.id === eId); if (!e) return; e.fait = !e.fait; maj(); if (e.fait && e.type === 'RDV' && !c.signeLe) toast(`${libRdv(e)} fait. Pense à planifier le suivant.`); }
 
 /* ---- Voyant : proposer un créneau ---- */
 async function proposerCreneau(quoi) {
   const lib = quoi === 'r1' ? 'Prise de R1 (appels)' : 'Études de marché';
   const modele = semaineType().find(p => p.lib === lib) || { d: '18:30', f: '19:30' };
-  let d = addJours(aujourdhui(), 1); if (jourSemaine(d) === 7) d = addJours(d, 1);
-  const r = await fenetre('Caler un créneau', `<p>Il te manque des rendez-vous d’avance. Je te propose ce créneau, change ce qui ne te va pas.</p>
+  const a = enMin(modele.d), b = enMin(modele.f), jours = [];
+  for (let k = 1; k < 21 && jours.length < 5; k++) {
+    const d = addJours(aujourdhui(), k); if (jourSemaine(d) === 7 || (jourSemaine(d) === 6 && S.profil.rythme === 'plein')) continue;
+    const pris = (x, y) => plagesDuJour(d).some(p => enMin(p.d) < y && enMin(p.f) > x) || evtsDuJour(d).some(({ e }) => e.heure && enMin(e.heure) < y && enMin(e.heure) + (Number(e.duree) || 60) > x);
+    const debut = [a].concat((S.profil.rythme === 'plein' ? ['09:00', '14:00', '16:30', '18:30'] : ['12:30', '18:30', '19:30']).map(enMin)).find(x => !pris(x, x + (b - a)));
+    if (debut !== undefined) jours.push({ date: d, heure: enHeure(debut), fin: enHeure(debut + (b - a)) });
+  }
+  const j0 = jours[0] || { date: addJours(aujourdhui(), 1), heure: modele.d, fin: modele.f };
+  const attente = fenetre('Planifier un créneau', `<p>Il te manque des rendez-vous d’avance. Choisis une des plages proposées ou change ce qui ne te va pas.</p>
     <label class="champ">Créneau<select name="lib"><option ${quoi === 'r1' ? 'selected' : ''}>Prise de R1 (appels)</option><option ${quoi !== 'r1' ? 'selected' : ''}>Études de marché</option></select></label>
-    <div class="form">${champ('Date', 'date', d, 'date', 'required')}${champ('Début', 'd', modele.d, 'time', 'required')}${champ('Fin', 'f', modele.f, 'time', 'required')}</div>`, [{ lib: 'Annuler', v: 'annuler', cls: 'discret' }, { lib: 'Ajouter à ma semaine', v: 'ok' }]);
+    ${puces(jours)}
+    <div class="form">${champ('Date', 'date', j0.date, 'date', 'required')}${champ('Début', 'd', j0.heure, 'time', 'required')}${champ('Fin', 'f', j0.fin, 'time', 'required')}</div>`, [{ lib: 'Annuler', v: 'annuler', cls: 'discret' }, { lib: 'Ajouter à ma semaine', v: 'ok' }]);
+  brancherPuces('date', 'd');
+  const r = await attente;
   if (r.v !== 'ok') return;
   S.plages.push({ id: uid(), date: r.data.date, d: r.data.d, f: r.data.f, lib: r.data.lib }); VUE.lundi = lundiDe(r.data.date); maj(); toast('Créneau ajouté à ta semaine');
 }
@@ -979,16 +1185,16 @@ function texteMailManager() {
 
 Ma semaine
 - Rendez-vous : ${rdvFaits.length} faits sur ${rdvPrevus.length} prévus
-- Études de marché : ${emF.length} faites sur ${emP.length} calées (objectif ${cibleEtudes()})
+- Études de marché : ${emF.length} faites sur ${emP.length} planifiées (objectif ${cibleEtudes()})
 - Rendez-vous d’avance : ${rdvAvance()}
 ${rdvFaits.map(ligne).join('\n')}
 
 Ma semaine à venir
-${aVenir.sort((a, b) => (a.e.date + a.e.heure).localeCompare(b.e.date + b.e.heure)).map(ligne).join('\n') || '- rien de calé pour l’instant'}
+${aVenir.sort((a, b) => (a.e.date + a.e.heure).localeCompare(b.e.date + b.e.heure)).map(ligne).join('\n') || '- rien de planifié pour l’instant'}
 
 Mes objectifs
 - Primo-liste : ${nbContacts()} noms (palier suivant ${palierSuivant(PALIERS_PRIMO, nbContacts())})
-- Clients : ${clients().length}${apres3J() && S.profil.date3J ? `\n- Prospects engagés : ${prospectsEngages().length} / 3 d’ici le ${fmtDate(addJours(S.profil.date3J, 60))}` : ''}${S.habilitation.dateQCM ? `\n- Habilitation : ${nf(heuresFaites())} h de révision, QCM le ${fmtDate(S.habilitation.dateQCM)}` : ''}`;
+- Clients : ${clients().length}${S.habilitation.dateQCM ? `\n- Habilitation : ${nf(heuresFaites())} h de révision, QCM le ${fmtDate(S.habilitation.dateQCM)}` : ''}`;
 }
 async function copier(texte) {
   try { await navigator.clipboard.writeText(texte); toast('Texte copié'); }
@@ -1013,7 +1219,8 @@ const COLONNES = [
   { cle: 'proprio', motifs: ['propriétaire', 'proprietaire', 'rp'] },
   { cle: 'impot', motifs: ['impôt', 'impot', 'tmi'] },
   { cle: 'insatisf', motifs: ['insatisfaction', 'satisfait', 'satisfaction'] },
-  { cle: 'lien', motifs: ['lien', 'origine', 'rencontre'] },
+  { cle: 'univers', motifs: ['univers', 'lien', 'origine', 'rencontre', 'cercle', 'où je'] },
+  { cle: 'mer', motifs: ['mis en relation par', 'mise en relation par', 'relation par', 'recommandé par', 'recommande par', 'présenté par', 'presente par'] },
   { cle: 'relationnel', motifs: ['relationnel', 'réseau', 'reseau'] },
   { cle: 'qualifie', motifs: ['rdv client', 'prendre rdv', 'a prendre', 'à prendre', 'rendez-vous', 'qualifi'] },
   { cle: 'potentiel', motifs: ['jd', 'dm', 'découverte', 'decouverte', 'contacter pour'] },
@@ -1025,7 +1232,7 @@ function detecterColonnes(entete) {
   const map = {};
   entete.forEach((h, i) => {
     const n = norm(h).replace(/\s+/g, ' '); if (!n) return;
-    const colle = m => { const nm = norm(m); if (n === nm) return true; if (nm.length <= 3) return new RegExp('(^|[^a-z])' + nm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '($|[^a-z])').test(n); return n.includes(nm); };
+    const colle = m => { const nm = norm(m); if (n === nm) return true; if (nm.length <= 4) return new RegExp('(^|[^a-z])' + nm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '($|[^a-z])').test(n); return n.includes(nm); };
     for (const c of COLONNES) { if (map[c.cle] !== undefined) continue; if (c.motifs.some(colle)) { map[c.cle] = i; break; } }
   });
   return map;
@@ -1050,11 +1257,26 @@ function lignesVersContacts(lignes) {
       const p = nom.split(/\s+/);
       if (p[0] === p[0].toUpperCase() && p[1] !== p[1].toUpperCase()) { nom = p.shift(); prenom = p.join(' '); } else { prenom = p.shift(); nom = p.join(' '); }
     }
+    if (!prenom && nom && !/\s/.test(nom)) { prenom = nom; nom = ''; } /* un seul mot : c'est le prénom, le nom est facultatif */
     const ouiNon = v => { const n = norm(v); return n === '' ? '' : oui(v) ? 'oui' : 'non'; };
-    res.push({ prenom: capital(prenom), nom, marche: oui(g('chaud')) ? 'chaud' : oui(g('froid')) ? 'froid' : '', age: g('age'), situation: g('situation'), metier: g('metier'), proprio: ouiNon(g('proprio')), impot: g('impot'), insatisf: g('insatisf'), lien: g('lien'), relationnel: g('relationnel'), tel: g('tel'), email: g('email'), commentaire: g('commentaire'), qualifie: oui(g('qualifie')), potentiel: oui(g('potentiel')) });
+    const notes = [g('commentaire')];
+    /* Univers : la colonne du fichier, ou l'ancien « Lien » en clair reconnu ; sinon le texte est gardé en commentaire */
+    const univTxt = g('univers'), mer = g('mer');
+    let univers = universDe(univTxt); if (univTxt && !univers) notes.push('Lien : ' + univTxt);
+    if (mer && !univers) univers = UNIVERS_MER;
+    const merTxt = mer || (univers === UNIVERS_MER ? (/\b(?:par|via)\s+\S/i.test(univTxt) ? capital(String(univTxt).replace(/^.*?\b(?:par|via)\s+/i, '').trim()) : '') : '');
+    /* Métier : grande famille ; le métier en clair est gardé à part */
+    const metierTexte = g('metier'), metier = METIERS.some(m => m.id === norm(metierTexte)) ? norm(metierTexte) : familleMetier(metierTexte);
+    const sitTxt = g('situation'), situation = situationDe(sitTxt); if (sitTxt && !situation) notes.push('Situation : ' + sitTxt);
+    const age = String(g('age')).replace(/[^\d]/g, '').slice(0, 3), impot = impotDe(g('impot'));
+    const r = { prenom: capital(prenom), nom, univers, misEnRelationPar: univers === UNIVERS_MER ? merTxt : '', marche: oui(g('chaud')) ? 'chaud' : oui(g('froid')) ? 'froid' : '', age, situation, metier, metierTexte: metier === familleMetier(metierTexte) && metierTexte ? metierTexte : '', proprio: ouiNon(g('proprio')), impot, insatisf: g('insatisf'), relationnel: g('relationnel'), tel: g('tel'), email: g('email'), commentaire: notes.filter(Boolean).join(' · '), rdvClient: oui(g('qualifie')), potentiel: oui(g('potentiel')) };
+    r.qualifie = r.rdvClient || CRITERES_QUALIF.some(k => r[k]); // liste déjà qualifiée : importée telle quelle
+    res.push(r);
   }
   return res;
 }
+function situationDe(v) { const n = norm(v); if (!n) return ''; if (/pacs/.test(n)) return 'pacse'; if (/divorc|separ|veuf|veuve/.test(n)) return 'divorce'; if (/mari/.test(n)) return 'marie'; if (/celib|seul/.test(n)) return 'celibataire'; return ''; }
+function impotDe(v) { const n = norm(v); if (!n) return ''; if (/^[123]$/.test(n)) return n; if (/fort|elev|haut|3/.test(n)) return '3'; if (/moyen|2/.test(n)) return '2'; if (/faible|bas|peu|non|aucun|0|1/.test(n)) return '1'; return ''; }
 function parserCSV(texte) {
   const l1 = texte.split('\n')[0] || '';
   const compte = c => (l1.split(c).length - 1);
@@ -1087,7 +1309,7 @@ function fusionnerContacts(nouveaux) {
   let ajoutes = 0, maj2 = 0;
   nouveaux.forEach(n => {
     const e = ex.get(cle(n));
-    if (e) { CHAMPS_CONTACT.forEach(k => { if (n[k] && !e[k]) e[k] = n[k]; }); if (n.qualifie) e.qualifie = true; if (n.potentiel) e.potentiel = true; maj2++; }
+    if (e) { CHAMPS_CONTACT.forEach(k => { if (n[k] && !e[k]) e[k] = n[k]; }); if (n.qualifie && !e.qualifie) { e.qualifie = true; e.qualifieLe = aujourdhui(); } if (n.rdvClient) e.rdvClient = true; if (n.potentiel) e.potentiel = true; maj2++; }
     else { const c = creerContact(n, 'import'); ex.set(cle(c), c); ajoutes++; }
   });
   return { ajoutes, maj: maj2 };
@@ -1154,7 +1376,7 @@ function brancher() {
       case 'qualifier': VUE.onglet = 'primo'; VUE.filtre = 'aqualifier'; rendre(); break;
       case 'nouvelle-etude': formEvt({ type: 'EM' }); break;
       case 'nouveau-rdv': formEvt({ type: 'RDV' }); break;
-      case 'qualif': c.qualifie = !c.qualifie; maj(); break;
+      case 'qualif': formQualif(c); break;
       case 'fiche': formContact(c); break;
       case 'evt-fait': basculerFait(b.dataset.c, b.dataset.e); break;
       case 'evt-modif': formEvt({ contact: c, evt: ev }); break;
@@ -1175,6 +1397,10 @@ function brancher() {
       case 'effacer': effacer(); break;
     }
   });
+  app.addEventListener('toggle', e => {
+    const d = e.target; if (!d.matches || !d.matches('details[data-cle]')) return;
+    VUE.ouvertes = VUE.ouvertes.filter(x => x !== d.dataset.cle); if (d.open) VUE.ouvertes.push(d.dataset.cle);
+  }, true);
   app.addEventListener('change', e => {
     const t = e.target;
     if (t.dataset.tache) {

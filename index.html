@@ -174,9 +174,18 @@ details.repli[open]>summary{margin-bottom:4px}
 label.champ[hidden]{display:none}
 dialog h3{margin-top:6px}
 /* v1.5 : badges — une petite médaille, le prochain badge sur chaque carte, les séries dans Mes chiffres */
-.med{display:inline-block;width:16px;height:16px;border-radius:50%;border:2px solid var(--ligne-forte);background:var(--sable);vertical-align:-3px;margin-right:8px;flex:none;box-sizing:border-box}
-.med.ok{border-color:var(--ambre-fonce);background:radial-gradient(circle at 35% 35%,#FFD98A,var(--ambre) 70%)}
-.med.petite{width:13px;height:13px;vertical-align:-2px;margin-right:6px}
+/* Médaille SVG : ruban + disque, dorée si obtenue, en pointillé pour la prochaine */
+.med{width:34px;height:44px;vertical-align:middle;margin-right:10px;flex:none;overflow:visible}
+.med.petite{width:18px;height:24px;margin-right:6px;vertical-align:-6px}
+.med .ruban{fill:var(--ligne-forte)}.med .ruban.r2{fill:var(--ligne)}
+.med .disque{fill:var(--sable);stroke:var(--ligne-forte);stroke-width:2;stroke-dasharray:3 3}
+.med .anneau{fill:none;stroke:var(--ligne-forte);stroke-width:1.2;stroke-dasharray:3 3}
+.med text{font-family:var(--f-titre);font-weight:800;font-size:12px;fill:var(--muted)}
+.med .etoile{fill:var(--ligne-forte)}
+.med.ok .ruban{fill:var(--vert)}.med.ok .ruban.r2{fill:var(--vert-fonce)}
+.med.ok .disque{fill:url(#or);fill:#F2B134;stroke:#9E5620;stroke-dasharray:none}
+.med.ok .anneau{stroke:#FFF0C2;stroke-dasharray:none}
+.med.ok text{fill:#5C3208}.med.ok .etoile{fill:#FFF0C2}
 .prochain-badge{display:flex;align-items:center;flex-wrap:wrap;gap:0 4px;color:var(--encre-2);padding-top:4px;border-top:1px dashed var(--ligne)}
 .prochain-badge .muted{font-weight:400}
 .serie .lib{font-size:13px;color:var(--muted);font-weight:700}
@@ -201,6 +210,14 @@ dialog h3{margin-top:6px}
 .ligne-formation .champ{flex:1 1 220px}
 .objectif .forman{margin:2px 0 0 30px}
 .objectif .forman a{color:var(--ambre-fonce);font-weight:700}
+.carte.kpi.cliquable{cursor:pointer;text-align:left;font:inherit;color:inherit;border-left:4px solid var(--pos)}
+.carte.kpi.cliquable.alerte{border-left-color:var(--neg)}
+.carte.kpi.cliquable:hover{box-shadow:0 1px 2px rgba(30,42,38,.08),0 14px 30px -16px rgba(30,42,38,.35)}
+.heures-grille{display:grid;gap:8px 14px;grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
+.ligne-heures{flex-direction:row;align-items:center;justify-content:space-between;gap:10px}
+.ligne-heures input{width:90px;flex:none}
+.agenda-equipe{width:100%;height:520px;border:1px solid var(--ligne);border-radius:12px;background:#fff}
+@media (max-width:600px){.agenda-equipe{height:420px}}
 </style>
 </head>
 <body>
@@ -235,12 +252,13 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 <script>/* ===== CAP — moteur de l'outil du nouveau conseiller =====
    Données stockées dans le navigateur (localStorage), exportables et réimportables (portabilité entre versions). */
 'use strict';
-const CAP_VERSION = '1.6';
+const CAP_VERSION = '1.7';
 const CLE_STOCK = 'cap-donnees';
 const LIEN_ATELIERS = 'https://asso-forman.fr/#/auth/workshop';
 const LIEN_CAP = 'https://labecka-conseil.github.io/cap/';
 const LIEN_FORMAN = 'https://asso-forman.fr/#/auth/home'; // les objectifs se valident sur asso-forman : lien « Objectifs validés » en haut de page
 const LIEN_AGENDA_EQUIPE = 'https://calendar.google.com/calendar/u/0?cid=cHRlb2oxb2o4dTEwMjA0ZG42cTM3ODQzNWNAZ3JvdXAuY2FsZW5kYXIuZ29vZ2xlLmNvbQ'; // agenda « PRODEMIAL - ORGANISATION DE JUSTYNA »
+const EMBED_AGENDA_EQUIPE = 'https://calendar.google.com/calendar/embed?src=pteoj1oj8u10204dn6q378435c%40group.calendar.google.com&ctz=Europe%2FParis&mode=AGENDA&showTitle=0&showPrint=0&showCalendars=0&showTz=0';
 
 /* ===== Utilitaires ===== */
 const $ = (s, r) => (r || document).querySelector(s);
@@ -354,13 +372,13 @@ const OBJECTIFS_NEOMAN = [
   { id: 'cursus', lib: 'Cursus initial', etapes: [ { id: 'n1', txt: 'Mon ESP avec le manager développeur de ma lignée', auto: 'esp', forman: true } ] },
   { id: '3j', lib: '3 Jours de la Réussite', etapes: [ { id: 'n8', txt: 'Participer aux 3 Jours de la Réussite', auto: '3j', forman: true } ] },
   { id: 'primo', lib: 'Primo-liste', etapes: PALIERS_PRIMO.slice(1).map(k => ({ id: 'primo' + k, txt: `${k} noms dans ma primo-liste`, auto: 'primo:' + k, forman: k === 500 })) },
-  { id: 'rdv', lib: 'Rendez-vous', etapes: [ { id: 'r1-seul', txt: 'Mener mon premier R1 seul', auto: 'r1:1' }, { id: 'n5', txt: 'Avoir 3 rendez-vous d’avance', auto: 'rdv:3', forman: true } ] },
+  { id: 'rdv', lib: 'Rendez-vous', etapes: [ { id: 'n5', txt: 'Mener mon premier R1 seul', auto: 'r1:1', forman: true } ] },
   { id: 'tronc', lib: 'Tronc Commun', etapes: [ { id: 'n3', txt: 'Retranscrire seul le Tronc Commun en rendez-vous', forman: true } ] },
   { id: 'module', lib: 'Module spécifique', etapes: [ { id: 'r2-seul', txt: 'Mener mon premier R2 seul', auto: 'r2:1' }, { id: 'n4', txt: 'Présenter et signer seul un module spécifique', choix: 'module', forman: true } ] },
   { id: 'clients', lib: 'Clients', etapes: [ { id: 'c1', txt: 'Mon premier client signé', auto: 'clients:1' }, { id: 'n7', txt: '2 foyers fiscaux clients', auto: 'clients:2', forman: true }, { id: 'c3', txt: '3 clients', auto: 'clients:3' }, { id: 'c10', txt: '10 clients', auto: 'clients:10' } ] },
-  { id: 'habilitation', lib: 'Habilitation', etapes: [ { id: 'n6', txt: 'Être inscrit au QCM (MIA ou Immobilier-IOBSP)', auto: 'qcm-inscrit', forman: true }, { id: 'n10', txt: 'Être inscrit à l’INPI', auto: 'inpi', forman: true }, { id: 'n9', txt: 'Avoir souscrit ma RCP', auto: 'rcp', forman: true }, { id: 'qcm-ok', txt: 'Valider mon QCM', auto: 'qcm-valide' }, { id: 'orias', txt: 'Obtenir mon numéro ORIAS', auto: 'orias' } ] },
+  { id: 'habilitation', lib: 'Habilitation', etapes: [ { id: 'n6', txt: 'Être inscrit au QCM (MIA ou Immobilier-IOBSP)', auto: 'qcm-inscrit', forman: true }, { id: 'n10', txt: 'Être inscrit à l’INPI (30 jours avant le QCM)', auto: 'inpi', forman: true, quand: 'qcm-45' }, { id: 'n9', txt: 'Avoir souscrit ma RCP', auto: 'rcp', forman: true, quand: 'qcm-45' }, { id: 'qcm-ok', txt: 'Valider mon QCM', auto: 'qcm-valide' }, { id: 'orias', txt: 'Obtenir mon numéro ORIAS', auto: 'orias' } ] },
   { id: 'mailmanager', lib: 'Mail Manager', etapes: [ { id: 'n11', txt: 'Envoyer mon Mail Manager chaque semaine', auto: 'mailmanager', forman: true } ] },
-  { id: 'dev', lib: 'Développement', etapes: [ { id: 'dm1', txt: 'Inviter une première personne à une Découverte Métier', auto: 'dm' }, { id: 'n12', txt: 'Suivre la formation Développement Équipe niveau 1', auto: 'dev-n1', forman: true } ] }
+  { id: 'dev', lib: 'Développement', etapes: [ { id: 'dm1', txt: 'Inviter une première personne à une Découverte Métier' }, { id: 'n12', txt: 'Suivre la formation Développement Équipe niveau 1', auto: 'dev-n1', forman: true } ] }
 ];
 /* Statuts FORMAN suivants (Beman → Adman → Manager) : objectifs repris tels quels, un objectif = une étape */
 const PARCOURS_FORMAN = [
@@ -396,22 +414,22 @@ const PARCOURS_FORMAN = [
 ];
 
 /* Événements du réseau et de l'organisation (repris du cockpit du 04/10/2026, mis à jour le 18/10/2026). Les découvertes métier et le détail du programme sont dans l'agenda de l'équipe. */
-const EVENEMENTS = [
-  { genre: 'Réseau', titre: 'Universités du patrimoine', debut: '2027-01-06', fin: '2027-01-08', lieu: 'Center Parcs Lac d’Ailette, Chamouille (02)' },
-  { genre: 'Équipe', titre: 'Visite d’un chantier Colosséum à Reims, la veille des Universités', debut: '2027-01-05', fin: '2027-01-05', lieu: '14 h, inscriptions début décembre' },
-  { genre: 'Réseau', titre: 'Forum du patrimoine', debut: '2027-01-27', fin: '2027-01-29', lieu: 'MEETT, Toulouse' },
-  { genre: 'Équipe', titre: 'Universités du patrimoine de l’organisation', debut: '2027-04-01', fin: '2027-04-03', lieu: 'Kyriad Meaux (77)' },
-  { genre: 'Réseau', titre: 'Universités du patrimoine', debut: '2027-09-01', fin: '2027-09-03', lieu: 'Novotel Fontainebleau Ury (77)' },
-  { genre: 'Équipe', titre: 'Objectif Manager, lignées hors organisations Grégory D. et Guillaume L.', debut: '2026-11-03', fin: '2026-11-03', lieu: 'Mardi 18 h – 20 h, Google Meet' },
-  { genre: 'Équipe', titre: 'Objectif Manager, lignée Grégory D.', debut: '2026-11-10', fin: '2026-11-10', lieu: 'Mardi 18 h – 20 h, Google Meet' },
-  { genre: 'Équipe', titre: 'Objectif Manager, lignée Guillaume L.', debut: '2026-11-19', fin: '2026-11-19', lieu: 'Jeudi 18 h – 20 h, Google Meet' },
-  { genre: 'Équipe', titre: 'Objectif Manager, lignées hors organisations Grégory D. et Guillaume L.', debut: '2027-02-02', fin: '2027-02-02', lieu: 'Mardi 18 h – 20 h, Google Meet' },
-  { genre: 'Équipe', titre: 'Objectif Manager, lignée Grégory D.', debut: '2027-02-23', fin: '2027-02-23', lieu: 'Mardi 18 h – 20 h, Google Meet' },
-  { genre: 'Équipe', titre: 'Objectif Manager, lignée Guillaume L.', debut: '2027-03-04', fin: '2027-03-04', lieu: 'Jeudi 18 h – 20 h, Google Meet' },
-  { genre: 'FORMAN', titre: 'Réunion FORMAN mensuelle', debut: '2026-11-02', fin: '2026-11-02', lieu: 'Lundi 14 h 30 – 15 h 30, visio' },
-  { genre: 'FORMAN', titre: 'Réunion FORMAN mensuelle', debut: '2026-11-30', fin: '2026-11-30', lieu: 'Lundi 14 h 30 – 15 h 30, visio' },
-  { genre: 'FORMAN', titre: 'Réunion FORMAN mensuelle', debut: '2027-02-01', fin: '2027-02-01', lieu: 'Lundi 14 h 30 – 15 h 30, visio' },
-  { genre: 'FORMAN', titre: 'AG FORMAN', debut: '2027-06-18', fin: '2027-06-18', lieu: 'Visio, 14 h 30, inscription sur asso-forman' }
+const EVENEMENTS = [ /* id = inscription cochée par le conseiller (S.evenements) */
+  { id: 'universites-du-patrimoine-2027-01-06', genre: 'Réseau', titre: 'Universités du patrimoine', debut: '2027-01-06', fin: '2027-01-08', lieu: 'Center Parcs Lac d’Ailette, Chamouille (02)' },
+  { id: 'visite-dun-chantier-colosseu-2027-01-05', genre: 'Équipe', titre: 'Visite d’un chantier Colosséum à Reims, la veille des Universités', debut: '2027-01-05', fin: '2027-01-05', lieu: '14 h, inscriptions début décembre' },
+  { id: 'forum-du-patrimoine-2027-01-27', genre: 'Réseau', titre: 'Forum du patrimoine', debut: '2027-01-27', fin: '2027-01-29', lieu: 'MEETT, Toulouse' },
+  { id: 'universites-du-patrimoine-de-2027-04-01', genre: 'Équipe', titre: 'Universités du patrimoine de l’organisation', debut: '2027-04-01', fin: '2027-04-03', lieu: 'Kyriad Meaux (77)' },
+  { id: 'universites-du-patrimoine-2027-09-01', genre: 'Réseau', titre: 'Universités du patrimoine', debut: '2027-09-01', fin: '2027-09-03', lieu: 'Novotel Fontainebleau Ury (77)' },
+  { id: 'objectif-manager-lignees-hor-2026-11-03', genre: 'Équipe', titre: 'Objectif Manager, lignées hors organisations Grégory D. et Guillaume L.', debut: '2026-11-03', fin: '2026-11-03', lieu: 'Mardi 18 h – 20 h, Google Meet' },
+  { id: 'objectif-manager-lignee-greg-2026-11-10', genre: 'Équipe', titre: 'Objectif Manager, lignée Grégory D.', debut: '2026-11-10', fin: '2026-11-10', lieu: 'Mardi 18 h – 20 h, Google Meet' },
+  { id: 'objectif-manager-lignee-guil-2026-11-19', genre: 'Équipe', titre: 'Objectif Manager, lignée Guillaume L.', debut: '2026-11-19', fin: '2026-11-19', lieu: 'Jeudi 18 h – 20 h, Google Meet' },
+  { id: 'objectif-manager-lignees-hor-2027-02-02', genre: 'Équipe', titre: 'Objectif Manager, lignées hors organisations Grégory D. et Guillaume L.', debut: '2027-02-02', fin: '2027-02-02', lieu: 'Mardi 18 h – 20 h, Google Meet' },
+  { id: 'objectif-manager-lignee-greg-2027-02-23', genre: 'Équipe', titre: 'Objectif Manager, lignée Grégory D.', debut: '2027-02-23', fin: '2027-02-23', lieu: 'Mardi 18 h – 20 h, Google Meet' },
+  { id: 'objectif-manager-lignee-guil-2027-03-04', genre: 'Équipe', titre: 'Objectif Manager, lignée Guillaume L.', debut: '2027-03-04', fin: '2027-03-04', lieu: 'Jeudi 18 h – 20 h, Google Meet' },
+  { id: 'reunion-forman-mensuelle-2026-11-02', genre: 'FORMAN', titre: 'Réunion FORMAN mensuelle', debut: '2026-11-02', fin: '2026-11-02', lieu: 'Lundi 14 h 30 – 15 h 30, visio' },
+  { id: 'reunion-forman-mensuelle-2026-11-30', genre: 'FORMAN', titre: 'Réunion FORMAN mensuelle', debut: '2026-11-30', fin: '2026-11-30', lieu: 'Lundi 14 h 30 – 15 h 30, visio' },
+  { id: 'reunion-forman-mensuelle-2027-02-01', genre: 'FORMAN', titre: 'Réunion FORMAN mensuelle', debut: '2027-02-01', fin: '2027-02-01', lieu: 'Lundi 14 h 30 – 15 h 30, visio' },
+  { id: 'ag-forman-2027-06-18', genre: 'FORMAN', titre: 'AG FORMAN', debut: '2027-06-18', fin: '2027-06-18', lieu: 'Visio, 14 h 30, inscription sur asso-forman' }
 ];
 const RECURRENTS = [ { titre: '3M, réunion d’équipe', lieu: 'Chaque lundi, 9 h – 10 h, Google Meet, pour les conseillers à temps plein. Les réunions d’organisation sont pour tous.' } ];
 
@@ -468,6 +486,7 @@ function etatVide() {
     exceptions: {},      // jour ISO -> { cle de plage -> null (retirée) | { d, f, lib } (modifiée) }
     actif: {},           // jour ISO -> nombre d'actions
     badges: {},          // badge obtenu : famille:seuil -> date d'obtention (acquis pour toujours)
+    evenements: {},      // événements auxquels le conseiller est inscrit : id -> true
     derniereSauvegarde: ''
   };
 }
@@ -486,7 +505,7 @@ function migrer(d) {
   o.profil = Object.assign(etatVide().profil, d.profil || {});
   o.habilitation = Object.assign(etatVide().habilitation, d.habilitation || {});
   ['contacts', 'plages'].forEach(k => { if (!Array.isArray(o[k])) o[k] = []; });
-  ['taches', 'hebdo', 'formations', 'actif', 'parcours', 'modele', 'exceptions', 'badges'].forEach(k => { if (!o[k] || typeof o[k] !== 'object') o[k] = {}; });
+  ['taches', 'hebdo', 'formations', 'actif', 'parcours', 'modele', 'exceptions', 'badges', 'evenements'].forEach(k => { if (!o[k] || typeof o[k] !== 'object') o[k] = {}; });
   const ancien = Number(d.schema) || 1; o.badgesAInitialiser = !d.badges; /* première ouverture en v1.5 : les badges déjà mérités sont attribués sans fanfare */
   /* v1.4 : le départ de CAP est le jour d'inscription dans le réseau (avant : date de l'Atelier Démarrage) */
   if (d.profil && d.profil.dateAD && !d.profil.dateInscription) o.profil.dateInscription = d.profil.dateAD;
@@ -572,7 +591,7 @@ const BADGES = [
   { fam: 'primo', lib: 'Primo-liste', seuils: PALIERS_PRIMO, val: () => nbContacts(), txt: n => `${n} noms sur ma primo-liste` },
   { fam: 'qualif', lib: 'Qualification', seuils: [10, 25, 50], val: () => qualifies(), txt: n => n === 50 ? 'Mes 50 premiers noms qualifiés' : `${n} noms qualifiés` },
   { fam: 'etudes', lib: 'Études de marché', seuils: [5, 10, 25, 50, 100], val: () => etudesTotal(), txt: n => n === 5 ? 'Mes 5 premières études de marché' : `${n} études de marché menées` },
-  { fam: 'rdv', lib: 'Rendez-vous', seuils: [1, 5, 10, 25, 50], val: () => rdvFaits(), txt: n => n === 1 ? 'Mon premier rendez-vous mené' : `${n} rendez-vous menés` },
+  { fam: 'rdv', lib: 'Rendez-vous', seuils: [1, 5, 10, 25, 50], val: () => rdvFaits(), txt: n => n === 1 ? 'Mon premier R mené' : `${n} R cumulés` },
   { fam: 'clients', lib: 'Clients', seuils: [1, 5, 10, 20, 30], val: () => clients().length, txt: n => n === 1 ? 'Mon premier client' : `${n} clients` },
   { fam: 'formations', lib: 'Formations', seuils: [1, 3, 6, FORMATIONS_FORMAN.length], val: () => FORMATIONS_FORMAN.filter(t => S.formations[t] && S.formations[t].date).length, txt: n => n === 1 ? 'Ma première formation Forman positionnée' : n === FORMATIONS_FORMAN.length ? 'Toutes mes formations Forman niveau 1 positionnées' : `${n} formations Forman positionnées` },
   { fam: 'regularite', lib: 'Régularité', seuils: [2, 3, 5, 10, 20], val: () => semainesActives(), txt: n => `${n} semaines actives d’affilée` }
@@ -624,13 +643,15 @@ function evalAuto(code) {
     default: return false;
   }
 }
+/* Une étape n'est d'actualité qu'à son heure : l'INPI et la RCP se lancent 30 jours avant le QCM, on les montre à 45 jours */
+function etapeActuelle(e) { if (e.quand === 'qcm-45') return !!S.habilitation.dateQCM && diffJours(aujourdhui(), S.habilitation.dateQCM) <= 45; return true; }
 const etapeOk = e => { const manuel = !!(S.parcours[e.id] && S.parcours[e.id].fait); return e.auto ? evalAuto(e.auto) || manuel : manuel; };
 /* Un objectif = un thème avec des étapes qui évoluent ; validé quand toutes ses étapes le sont ; « etape » = la première qui reste à faire */
 function objectifsEvalues() {
   return niveauForman().objectifs.map(o => {
     const etapes = (o.etapes || [{ id: o.id, txt: o.txt, auto: o.auto, forman: !o.auto }]).map(e => Object.assign({}, e, { ok: etapeOk(e) }));
-    const faites = etapes.filter(e => e.ok).length;
-    return { id: o.id, lib: o.lib || o.txt, etapes, faites, ok: faites === etapes.length, etape: etapes.find(e => !e.ok) || null };
+    const faites = etapes.filter(e => e.ok).length, etape = etapes.find(e => !e.ok) || null;
+    return { id: o.id, lib: o.lib || o.txt, etapes, faites, ok: faites === etapes.length, etape, actuel: !etape || etapeActuelle(etape) };
   });
 }
 
@@ -673,7 +694,7 @@ const TACHES = [
     visible: () => true,
     sous: () => { const n = etudesSemaine(lundiCourant()), c = cibleEtudes(); return [
       { id: 'sms', txt: `Envoyer mes ${c} SMS` },
-      { id: 'calees', txt: `Planifier chaque étude avec sa date (${n}/${c})`, ok: () => n >= c }
+      { id: 'calees', txt: `Planifier chaque étude avec sa date (${n}/${c}), ou cocher si c’est déjà fait`, manuel: true, ok: () => n >= c }
     ]; },
     actions: () => '<button class="btn petit" data-act="nouvelle-etude">Planifier une étude</button>' },
   { cle: 'story', type: 'ponctuelle', axe: 'Rendez-vous', prio: 15,
@@ -726,18 +747,12 @@ const TACHES = [
     visible: () => !!S.habilitation.qcmValide && !!HABILITATIONS[S.habilitation.formation],
     sous: () => (HABILITATIONS[S.habilitation.formation] || { apres: [] }).apres.map(a => ({ id: a.id, txt: a.txt })) },
   { cle: 'mailmanager', type: 'hebdo', axe: 'Organisation', prio: 50, badge: 'regularite', prioDyn: () => jourSemaine(aujourdhui()) >= 5 ? 18 : 50,
-    titre: () => 'Mon Mail Manager du vendredi',
+    titre: () => 'Mon Mail Manager hebdomadaire',
     detail: () => 'Ta semaine passée, ta semaine à venir et où tu en es sur tes objectifs.',
     visible: () => apres3J(),
     sous: () => [ { id: 'envoye', txt: 'Envoyer mon Mail Manager' } ],
     actions: () => '<button class="btn petit ligne" data-act="mail-manager">Préparer le texte</button>' },
-  /* Développement (18/10/2026) : une seule chose pour un nouveau, inviter une première personne à une Découverte Métier */
-  { cle: 'dm', type: 'ponctuelle', axe: 'Développement', prio: 30,
-    titre: () => 'Inviter une première personne à une Découverte Métier',
-    detail: () => 'Pendant l’appel, c’est ton invité qui s’inscrit lui-même sur asso-forman, guidé pas à pas. Les dates de Découverte Métier sont dans l’agenda de l’équipe.',
-    visible: () => faite('esp'),
-    sous: () => [ { id: 'reperer', txt: 'Repérer dans ma primo-liste qui pourrait faire le métier' }, { id: 'invite', txt: 'Mon premier invité est inscrit à une Découverte Métier' } ],
-    actions: () => `<button class="btn petit ligne" data-act="voir-dev">Relire ma primo-liste</button><a class="btn petit discret" href="${LIEN_AGENDA_EQUIPE}" target="_blank" rel="noopener">Agenda de l’équipe</a>` },
+  /* Pas de tâche Développement en première page (18/10/2026) : la Découverte Métier est un objectif « Vers Manager », parmi les derniers */
   { cle: 'formations', type: 'continue', axe: 'Formations et événements', prio: 40, badge: 'formations',
     titre: () => 'Mes formations Forman niveau 1',
     detail: () => { const n = FORMATIONS_FORMAN.filter(t => S.formations[t] && S.formations[t].date).length; return `${n} sur ${FORMATIONS_FORMAN.length} positionnées. Inscris-toi sur asso-forman, puis note la date ici.`; },
@@ -788,7 +803,8 @@ function jalon() {
 /* ===== Affichage ===== */
 const VUE = { ouvertes: [], onglet: 'semaine', lundi: null, filtre: 'tous', cherche: '', limite: 150, devFiltre: 'arelire', devCherche: '', devLimite: 100 };
 /* L'onglet Développement est là dès le début (optionnel) ; Vers Manager s'ouvre après les 3 Jours. */
-const onglets = () => [['semaine', 'Ma semaine'], ['primo', 'Ma primo-liste'], ['formations', 'Formations'], ['developpement', 'Développement']].concat(apres3J() ? [['parcours', 'Vers Manager']] : []).concat([['chiffres', 'Mes chiffres'], ['reglages', 'Réglages']]);
+/* 6 onglets (18/10/2026) : prospection, clients et développement vivent ensemble dans « Mon activité » */
+const onglets = () => [['semaine', 'Ma semaine'], ['primo', 'Mon activité'], ['formations', 'Formations et événements']].concat(apres3J() ? [['parcours', 'Vers Manager']] : []).concat([['chiffres', 'Mes chiffres'], ['reglages', 'Réglages']]);
 let TOAST_T = null;
 function toast(msg) { const t = $('#toast'); if (!t) return; t.textContent = msg; t.classList.add('on'); clearTimeout(TOAST_T); TOAST_T = setTimeout(() => t.classList.remove('on'), 2800); }
 
@@ -801,7 +817,7 @@ function rendre() {
   const app = $('#app');
   if (!S.profil.prenom) { app.innerHTML = vueAccueil(); return; }
   if (!VUE.lundi) VUE.lundi = lundiCourant();
-  const vues = { semaine: vueSemaine, primo: vuePrimo, formations: vueFormations, developpement: vueDeveloppement, parcours: vueParcours, chiffres: vueChiffres, reglages: vueReglages };
+  const vues = { semaine: vueSemaine, primo: vueActivite, formations: vueFormations, parcours: vueParcours, chiffres: vueChiffres, reglages: vueReglages };
   if (!vues[VUE.onglet] || !onglets().some(([k]) => k === VUE.onglet)) VUE.onglet = 'semaine';
   app.innerHTML = `<div class="page">
     <header class="entete"><div class="marque">CAP<small>${esc(nomComplet({ prenom: S.profil.prenom, nom: S.profil.nom }))} · ${jLabel()}${S.profil.parrain ? ' · parrain : ' + esc(nomComplet({ prenom: S.profil.parrain, nom: S.profil.parrainNom })) : ''}</small></div><div class="esp"></div></header>
@@ -844,11 +860,12 @@ function champSous(t, s) {
   return '';
 }
 /* Prochain badge d'une famille, affiché sur la carte de tâche et dans Mes chiffres */
-const medaille = (ok, petit) => `<span class="med ${ok ? 'ok' : ''} ${petit ? 'petite' : ''}" aria-hidden="true"></span>`;
+/* Une vraie médaille (18/10/2026) : ruban et disque, dorée quand elle est obtenue, en pointillé pour la prochaine */
+const medaille = (ok, petit, seuil) => `<svg class="med ${ok ? 'ok' : ''} ${petit ? 'petite' : ''}" viewBox="0 0 40 52" aria-hidden="true"><path class="ruban" d="M12 0h7l2 14-5 6z"/><path class="ruban r2" d="M28 0h-7l-2 14 5 6z"/><circle class="disque" cx="20" cy="34" r="16"/><circle class="anneau" cx="20" cy="34" r="11.5"/>${seuil !== undefined ? `<text x="20" y="38.5" text-anchor="middle">${seuil}</text>` : '<path class="etoile" d="M20 26.5l2.3 4.7 5.2.8-3.8 3.7.9 5.2-4.6-2.4-4.6 2.4.9-5.2-3.8-3.7 5.2-.8z"/>'}</svg>`;
 function ligneBadge(fam) {
   const p = prochainBadge(fam), obtenus = badgesObtenus(fam);
   const dernier = obtenus.length ? ` <span class="muted">· ${obtenus.length > 1 ? obtenus.length + ' badges obtenus' : 'dernier badge : ' + esc(obtenus[obtenus.length - 1].txt)}</span>` : '';
-  return `<div class="prochain-badge petit">${medaille(!p, true)}${p ? `<b>Prochain badge :</b> ${esc(p.txt)}${p.manque ? ` <span class="muted tnum">(encore ${nf(p.manque)})</span>` : ''}` : '<b>Tous les badges de cette série sont obtenus</b>'}${dernier}</div>`;
+  return `<div class="prochain-badge petit">${medaille(!p, true, p ? p.seuil : undefined)}${p ? `<b>Prochain badge :</b> ${esc(p.txt)}${p.manque ? ` <span class="muted tnum">(encore ${nf(p.manque)})</span>` : ''}` : '<b>Tous les badges de cette série sont obtenus</b>'}${dernier}</div>`;
 }
 /* Planifier une tâche dans l'agenda (18/10/2026) : pas d'échéance imposée, une plage datée si le conseiller le veut */
 function planifTache(t) {
@@ -915,8 +932,9 @@ function vueAgenda() {
 /* ---- Ma primo-liste ---- */
 const universCourt = c => c.univers ? (c.univers === UNIVERS_MER && c.misEnRelationPar ? 'mis en relation par ' + c.misEnRelationPar : c.univers) : '';
 const texteContact = c => [nomComplet(c), c.univers, c.misEnRelationPar, libMetier(c.metier), c.metierTexte, c.commentaire].filter(Boolean).join(' ');
+function vueActivite() { return vuePrimo() + vueDeveloppement(); }
 function vuePrimo() {
-  const n = nbContacts(), pro = S.contacts.filter(c => statutContact(c) === 'prospect').length, cli = clients().length;
+  const n = nbContacts(), pro = S.contacts.filter(c => statutContact(c) === 'prospect').length, cli = clients().length, ra = rdvAvance();
   const F = { tous: () => true, aqualifier: c => !c.qualifie && statutContact(c) === 'contact', qualifies: c => c.qualifie, prospects: c => statutContact(c) === 'prospect', clients: c => statutContact(c) === 'client' };
   const q = norm(VUE.cherche);
   const liste = S.contacts.filter(F[VUE.filtre] || F.tous).filter(c => !q || norm(texteContact(c)).includes(q))
@@ -932,7 +950,8 @@ function vuePrimo() {
       <div class="carte kpi"><div class="lib">Noms dans ma primo-liste</div><div class="val">${nf(n)}</div><div class="petit muted">${prochainBadge('primo') ? 'Prochain badge : ' + esc(prochainBadge('primo').txt) : 'Les 500 noms sont atteints'}</div></div>
       <div class="carte kpi"><div class="lib">Qualifiés</div><div class="val">${nf(qualifies())}</div></div>
       <div class="carte kpi"><div class="lib">Prospects</div><div class="val">${nf(pro)}</div></div>
-      <div class="carte kpi"><div class="lib">Clients</div><div class="val">${nf(cli)}</div></div></section>
+      <div class="carte kpi"><div class="lib">Clients</div><div class="val">${nf(cli)}</div></div>
+      <button type="button" class="carte kpi cliquable ${ra >= 3 ? 'ok' : 'alerte'}" data-act="rdv-avance"><div class="lib">Rendez-vous d’avance</div><div class="val">${ra} <span class="petit muted">/ 3</span></div><div class="petit muted">${ra >= 3 ? 'Plancher tenu. ' : `Il en manque ${3 - ra}. `}Clique pour voir qui.</div></button></section>
     <section class="carte pile"><h2>Importer mon fichier</h2>
       <div class="depot" id="zone-depot" tabindex="0" role="button">Dépose ici ton fichier Excel ou CSV de l’Atelier, déjà qualifié ou non, ou clique pour le choisir.<br><span class="petit">Les noms déjà présents ne sont pas dupliqués ; le métier en clair est rangé dans sa grande famille.</span></div>
       <input type="file" id="fichier-primo" accept=".xlsx,.xls,.xlsm,.ods,.csv,.txt" hidden></section>
@@ -954,7 +973,7 @@ function vueDeveloppement() {
   const lignes = liste.slice(0, VUE.devLimite).map(c => `<div class="contact"><div><span class="nom">${esc(nomComplet(c))}</span>${statutContact(c) !== 'contact' ? `<span class="badge ${statutContact(c)}">${statutContact(c) === 'client' ? 'CLIENT' : 'PROSPECT'}</span>` : ''}
       <div class="meta">${[libMetier(c.metier), universCourt(c)].filter(Boolean).map(esc).join(' · ')}</div></div>
       <div class="actions"><button class="btn petit ${c.potentiel ? 'discret' : 'ligne'}" data-act="potentiel" data-c="${c.id}">${c.potentiel ? 'Retirer' : 'À contacter pour JD'}</button></div></div>`).join('');
-  return `<p class="petit muted">Le développement, c'est proposer le métier. Cet onglet est là dès le début, à ton rythme.</p>
+  return `<h2>Développement</h2><p class="petit muted">Le développement, c'est proposer le métier. C’est là dès le début, à ton rythme.</p>
     <section class="grille">
       <div class="carte pile"><h2>École des Développeurs niveau 1</h2>
         <div class="petit muted">Sur asso-forman, l’atelier s’appelle « Développement Equipe - Niveau 1 ». ${esc(etatDev)}</div>
@@ -972,7 +991,7 @@ function vueDeveloppement() {
 
 /* ---- Vers Manager : statuts FORMAN et paliers ---- */
 function vueParcours() {
-  const nv = niveauForman(), objs = objectifsEvalues(), valides = objs.filter(o => o.ok), restants = objs.filter(o => !o.ok), cli = clients().length;
+  const nv = niveauForman(), objs = objectifsEvalues(), valides = objs.filter(o => o.ok), restants = objs.filter(o => !o.ok && o.actuel), plusTard = objs.filter(o => !o.ok && !o.actuel), cli = clients().length;
   const choix = `<label class="champ petit" for="statut">Mon statut FORMAN actuel<select id="statut" data-cible="profil.statut">${PARCOURS_FORMAN.map(n => `<option value="${n.statut}" ${nv.statut === n.statut ? 'selected' : ''}>${n.lib}</option>`).join('')}</select></label>`;
   /* Un objectif = un thème dont l'étape évolue ; 5 au plus, dans l'ordre du parcours ; les validés sont seulement comptés */
   const ligne = o => {
@@ -986,7 +1005,7 @@ function vueParcours() {
   const objectifs = nv.objectifs.length ? `<section class="carte pile"><h2>De ${nv.lib} vers ${nv.vers}</h2>
       <div class="jauge" role="img" aria-label="${valides.length} objectifs validés sur ${objs.length}"><i style="width:${Math.round(valides.length / objs.length * 100)}%"></i></div>
       <div class="petit tnum"><b>${valides.length} objectif${valides.length > 1 ? 's' : ''} validé${valides.length > 1 ? 's' : ''} sur ${objs.length}</b></div>
-      ${restants.length ? `<h3 class="sous-titre">${restants.length > 1 ? 'Mes prochains objectifs' : 'Mon dernier objectif'}</h3><div class="objectifs">${restants.slice(0, 5).map(ligne).join('')}</div>${restants.length > 5 ? `<div class="petit muted">${restants.length - 5} autre${restants.length > 6 ? 's' : ''} ensuite.</div>` : ''}` : `<div class="petit">Tous les objectifs sont validés : passe ton statut à ${nv.vers} ci-dessus.</div>`}</section>` : '<section class="carte"><h2>Manager</h2><div class="petit muted">Cap atteint. Les paliers de VA continuent ci-dessous.</div></section>';
+      ${restants.length ? `<h3 class="sous-titre">${restants.length > 1 ? 'Mes prochains objectifs' : 'Mon dernier objectif'}</h3><div class="objectifs">${restants.slice(0, 5).map(ligne).join('')}</div>${restants.length > 5 || plusTard.length ? `<div class="petit muted">${restants.length > 5 ? `${restants.length - 5} autre${restants.length > 6 ? 's' : ''} ensuite. ` : ''}${plusTard.length ? `${plusTard.map(o => o.lib).join(', ')} : à son heure (INPI et RCP, 45 jours avant le QCM).` : ''}</div>` : ''}` : `<div class="petit">Tous les objectifs sont validés : passe ton statut à ${nv.vers} ci-dessus.</div>`}</section>` : '<section class="carte"><h2>Manager</h2><div class="petit muted">Cap atteint. Les paliers de VA continuent ci-dessous.</div></section>';
   return `<section class="carte pile"><div class="form">${choix}</div></section>${objectifs}
     <h2>Mes paliers</h2><section class="grille">
       <div class="carte kpi"><div class="lib">Clients</div><div class="val">${cli}</div>${jaugeGlissante(PALIERS_CLIENTS, cli, 'clients')}</div>
@@ -1000,21 +1019,26 @@ function vueFormations() {
   const aVenir = posees.filter(t => S.formations[t].date >= a), passees = posees.filter(t => S.formations[t].date < a), aPoser = FORMATIONS_FORMAN.filter(t => !S.formations[t] || !S.formations[t].date);
   const idF = t => 'f-' + norm(t).replace(/[^a-z0-9]+/g, '-');
   const ligneF = t => `<div class="ligne-formation"><label class="champ petit" for="${idF(t)}">${esc(t)}${S.formations[t] && S.formations[t].date ? ' ✓' : ''}<input type="date" id="${idF(t)}" data-forman="${esc(t)}" value="${esc((S.formations[t] || {}).date || '')}"></label><a class="btn petit discret" href="${LIEN_ATELIERS}" target="_blank" rel="noopener">M’inscrire sur asso-forman</a></div>`;
+  /* Heures de formation habilitante : une ligne par semaine depuis la première saisie (ou 8 semaines), saisie directe */
+  const semaines = []; if (h) { const l0 = lundiCourant(), deb = Object.keys(S.habilitation.heures).sort()[0]; const n = Math.min(26, Math.max(8, deb ? Math.round(diffJours(deb, l0) / 7) + 1 : 8)); for (let k = 0; k < n; k++) semaines.push(addJours(l0, -7 * k)); }
+  const lignesH = semaines.map(l => `<label class="champ petit ligne-heures" for="h-${l}"><span>Semaine du ${fmtDate(l)}${l === lundiCourant() ? ' (en cours)' : ''}</span><input type="number" min="0" step="0.5" id="h-${l}" data-heures-semaine="${l}" value="${esc(S.habilitation.heures[l] || '')}" placeholder="0"></label>`).join('');
   const habil = h ? `<div class="grille"><div class="kpi"><div class="lib">Formation</div><div class="val" style="font-size:22px">${esc(h.lib)}</div></div>
       <div class="kpi"><div class="lib">QCM</div><div class="val" style="font-size:22px">${S.habilitation.dateQCM ? capital(fmtDate(S.habilitation.dateQCM, true)) : 'date à fixer'}</div>${S.habilitation.qcmValide ? '<div class="petit">Validé</div>' : S.habilitation.dateQCM ? `<div class="petit muted">J-${diffJours(a, S.habilitation.dateQCM)}</div>` : ''}</div>
-      <div class="kpi"><div class="lib">Heures de formation validées</div><div class="val">${nf(heuresFaites())} <span class="petit muted">/ ${h.heures} h</span></div>${jaugeGlissante([h.heures], heuresFaites(), 'h')}${S.habilitation.dateQCM && !S.habilitation.qcmValide ? `<div class="petit muted">${cibleRevision()} h par semaine d’ici le QCM</div>` : ''}</div></div>`
+      <div class="kpi"><div class="lib">Heures validées</div><div class="val">${nf(heuresFaites())} <span class="petit muted">/ ${h.heures} h</span></div>${jaugeGlissante([h.heures], heuresFaites(), 'h')}${S.habilitation.dateQCM && !S.habilitation.qcmValide ? `<div class="petit muted">${cibleRevision()} h par semaine d’ici le QCM</div>` : ''}</div></div>
+      <details class="repli" open><summary>Mes heures par semaine</summary><div class="heures-grille">${lignesH}</div></details>`
     : `<div class="petit muted">${apres3J() ? 'Choisis ta première habilitation dans la tâche « M’inscrire au QCM », dans Ma semaine. Le MIA est préconisé.' : 'Ta première habilitation (MIA préconisé) se choisit après les 3 Jours de la Réussite.'}</div>`;
   const evts = EVENEMENTS.filter(e => e.fin >= a).sort((x, y) => x.debut.localeCompare(y.debut));
-  const ligneE = e => `<div class="evenement"><div class="date tnum">${capital(fmtDate(e.debut, true))}${e.fin !== e.debut ? ' au ' + fmtDate(e.fin, true) : ''}</div><div><b>${esc(e.titre)}</b> <span class="petit muted">· ${esc(e.genre)}</span><div class="petit muted">${esc(e.lieu)}</div></div></div>`;
+  const ligneE = e => `<div class="evenement"><div class="date tnum">${capital(fmtDate(e.debut, true))}${e.fin !== e.debut ? ' au ' + fmtDate(e.fin, true) : ''}</div><div style="flex:1 1 240px"><b>${esc(e.titre)}</b> <span class="petit muted">· ${esc(e.genre)}</span><div class="petit muted">${esc(e.lieu)}</div></div><label class="coche petit ${S.evenements[e.id] ? 'fait' : ''}"><input type="checkbox" data-evenement="${e.id}" ${S.evenements[e.id] ? 'checked' : ''}><span>J’y vais</span></label></div>`;
   return `<section class="carte pile"><h2>Mes prochaines formations</h2>
       ${aVenir.length ? `<div class="pile petit">${aVenir.map(t => `<div class="evenement"><div class="date tnum">${capital(fmtDate(S.formations[t].date, true))}</div><div><b>${esc(t)}</b></div></div>`).join('')}</div>` : '<div class="petit muted">Aucune formation positionnée pour l’instant.</div>'}
       ${aPoser.length ? `<h3 class="sous-titre">À positionner (${aPoser.length})</h3><div class="pile">${aPoser.map(ligneF).join('')}</div>` : '<div class="petit">Toutes les formations Forman niveau 1 sont positionnées.</div>'}
       ${passees.length ? `<details class="repli"><summary>Suivies (${passees.length})</summary><div class="pile">${passees.map(ligneF).join('')}</div></details>` : ''}</section>
     <section class="carte pile"><h2>Ma formation habilitante</h2>${habil}</section>
-    <section class="carte pile"><h2>Mes événements</h2>
+    <section class="carte pile"><h2>Mes prochains événements</h2>
       <div class="petit muted">${RECURRENTS.map(r => `<b>${esc(r.titre)}</b> · ${esc(r.lieu)}`).join('<br>')}</div>
-      <div class="pile">${evts.map(ligneE).join('') || '<div class="petit muted">Aucun événement à venir.</div>'}</div>
-      <div class="actions"><a class="btn petit ligne" href="${LIEN_AGENDA_EQUIPE}" target="_blank" rel="noopener">Agenda de l’équipe (découvertes métier, réunions)</a><a class="btn petit discret" href="${LIEN_ATELIERS}" target="_blank" rel="noopener">Ateliers asso-forman</a></div></section>`;
+      <div class="pile">${evts.map(ligneE).join('') || '<div class="petit muted">Aucun événement à venir.</div>'}</div></section>
+    <section class="carte pile"><h2>Agenda de l’équipe</h2><div class="petit muted">Découvertes métier, 3M, réunions d’organisation. <a href="${LIEN_AGENDA_EQUIPE}" target="_blank" rel="noopener">L’ouvrir dans Google Agenda</a> pour l’ajouter aux tiens.</div>
+      <iframe class="agenda-equipe" src="${EMBED_AGENDA_EQUIPE}" title="Agenda de l’équipe" loading="lazy"></iframe></section>`;
 }
 
 /* ---- Mes chiffres ---- */
@@ -1031,8 +1055,8 @@ function vueBadges() {
   const total = nbBadges();
   const cartes = BADGES.map(b => {
     const obtenus = badgesObtenus(b.fam), p = prochainBadge(b.fam);
-    const lignes = obtenus.map(o => `<div class="badge-ligne ok">${medaille(true)}<span><b>${esc(o.txt)}</b><span class="petit muted"> · ${fmtDate(o.le)}</span></span></div>`).join('');
-    const prochain = p ? `<div class="badge-ligne">${medaille(false)}<span>${esc(p.txt)}<span class="petit muted"> · prochain${p.manque ? `, encore ${nf(p.manque)}` : ''}</span></span><div class="jauge" role="img" aria-label="${esc(p.txt)}"><i style="width:${Math.round(p.pct * 100)}%"></i></div></div>` : `<div class="petit muted">Série complète.</div>`;
+    const lignes = obtenus.map(o => `<div class="badge-ligne ok">${medaille(true, false, o.seuil)}<span><b>${esc(o.txt)}</b><span class="petit muted"> · ${fmtDate(o.le)}</span></span></div>`).join('');
+    const prochain = p ? `<div class="badge-ligne">${medaille(false, false, p.seuil)}<span>${esc(p.txt)}<span class="petit muted"> · prochain${p.manque ? `, encore ${nf(p.manque)}` : ''}</span></span><div class="jauge" role="img" aria-label="${esc(p.txt)}"><i style="width:${Math.round(p.pct * 100)}%"></i></div></div>` : `<div class="petit muted">Série complète.</div>`;
     return `<div class="carte pile serie"><div class="lib">${esc(b.lib)}<span class="muted tnum"> · ${obtenus.length} / ${b.seuils.length}</span></div>${lignes}${prochain}</div>`;
   }).join('');
   return `<h2>Mes badges <span class="muted tnum">· ${total}</span></h2><p class="petit muted">Chaque tâche annonce son prochain badge. Un badge obtenu reste acquis.</p><section class="grille">${cartes}</section>`;
@@ -1579,7 +1603,7 @@ function brancher() {
       case 'proposer': proposerCreneau(b.dataset.quoi); break;
       case 'planifier-tache': planifierTache(b.dataset.tache); break;
       case 'rdv-avance': fenetreRdvAvance(); break;
-      case 'voir-dev': VUE.onglet = 'developpement'; rendre(); break;
+      case 'voir-dev': VUE.onglet = 'primo'; rendre(); break;
       case 'mail-manager': fenetreMailManager(); break;
       case 'plus': VUE.limite += 150; rendre(); break;
       case 'dev-plus': VUE.devLimite += 100; rendre(); break;
@@ -1604,6 +1628,8 @@ function brancher() {
     if (t.dataset.parcoursChoix) { S.parcours.modules = S.parcours.modules || {}; S.parcours.modules[t.dataset.parcoursChoix] = t.value; maj(); return; }
     if (t.dataset.cible) { poser(t.dataset.cible, t.value); maj(); return; }
     if (t.dataset.heures) { S.habilitation.heures[lundiCourant()] = Number(t.value) || 0; maj(); return; }
+    if (t.dataset.heuresSemaine) { const l = t.dataset.heuresSemaine; if (Number(t.value) > 0) S.habilitation.heures[l] = Number(t.value); else delete S.habilitation.heures[l]; maj(); return; }
+    if (t.dataset.evenement) { if (t.checked) S.evenements[t.dataset.evenement] = true; else delete S.evenements[t.dataset.evenement]; maj(); return; }
     if (t.dataset.forman) { const k = t.dataset.forman; S.formations[k] = { date: t.value, poseLe: t.value ? aujourdhui() : '' }; if (!t.value) delete S.formations[k]; maj(); return; }
   });
   app.addEventListener('input', e => {

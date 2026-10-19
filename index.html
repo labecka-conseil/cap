@@ -183,7 +183,7 @@ dialog h3{margin-top:6px}
 .med text{font-family:var(--f-titre);font-weight:800;font-size:12px;fill:var(--muted)}
 .med .etoile{fill:var(--ligne-forte)}
 .med.ok .ruban{fill:var(--vert)}.med.ok .ruban.r2{fill:var(--vert-fonce)}
-.med.ok .disque{fill:url(#or);fill:#F2B134;stroke:#9E5620;stroke-dasharray:none}
+.med.ok .disque{fill:#F2B134;stroke:#9E5620;stroke-dasharray:none}
 .med.ok .anneau{stroke:#FFF0C2;stroke-dasharray:none}
 .med.ok text{fill:#5C3208}.med.ok .etoile{fill:#FFF0C2}
 .prochain-badge{display:flex;align-items:center;flex-wrap:wrap;gap:0 4px;color:var(--encre-2);padding-top:4px;border-top:1px dashed var(--ligne)}
@@ -252,7 +252,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 <script>/* ===== CAP — moteur de l'outil du nouveau conseiller =====
    Données stockées dans le navigateur (localStorage), exportables et réimportables (portabilité entre versions). */
 'use strict';
-const CAP_VERSION = '1.7';
+const CAP_VERSION = '1.8';
 const CLE_STOCK = 'cap-donnees';
 const LIEN_ATELIERS = 'https://asso-forman.fr/#/auth/workshop';
 const LIEN_CAP = 'https://labecka-conseil.github.io/cap/';
@@ -371,14 +371,20 @@ const MODULES = [['av', 'Assurance vie'], ['per', 'PER'], ['scpi', 'SCPI']];
 const OBJECTIFS_NEOMAN = [
   { id: 'cursus', lib: 'Cursus initial', etapes: [ { id: 'n1', txt: 'Mon ESP avec le manager développeur de ma lignée', auto: 'esp', forman: true } ] },
   { id: '3j', lib: '3 Jours de la Réussite', etapes: [ { id: 'n8', txt: 'Participer aux 3 Jours de la Réussite', auto: '3j', forman: true } ] },
+  /* v1.8 : la story n'occupe plus une des trois places après les 3 Jours, elle devient un objectif */
+  { id: 'story', lib: 'Ma story', etapes: [ { id: 'story-ok', txt: 'Ma story finalisée et validée par mon parrain', auto: 'story' } ] },
   { id: 'primo', lib: 'Primo-liste', etapes: PALIERS_PRIMO.slice(1).map(k => ({ id: 'primo' + k, txt: `${k} noms dans ma primo-liste`, auto: 'primo:' + k, forman: k === 500 })) },
-  { id: 'rdv', lib: 'Rendez-vous', etapes: [ { id: 'n5', txt: 'Mener mon premier R1 seul', auto: 'r1:1', forman: true } ] },
-  { id: 'tronc', lib: 'Tronc Commun', etapes: [ { id: 'n3', txt: 'Retranscrire seul le Tronc Commun en rendez-vous', forman: true } ] },
+  /* v1.8 : le Tronc Commun fait partie du premier R1, les deux objectifs FORMAN ne font qu'une étape, cochée à la main ;
+     puis le plancher du voyant devient un objectif : 3 rendez-vous d'avance tenus 4 semaines de suite */
+  { id: 'rdv', lib: 'Rendez-vous', etapes: [
+    { id: 'n5', txt: 'Mener mon premier R1 seul, Tronc Commun compris', forman: true, formanTxt: 'Deux objectifs FORMAN à valider sur asso-forman : premier R1 seul et Tronc Commun' },
+    { id: 'avance4', txt: 'Tenir 3 rendez-vous d’avance 4 semaines de suite', auto: 'avance:4' } ] },
   { id: 'module', lib: 'Module spécifique', etapes: [ { id: 'r2-seul', txt: 'Mener mon premier R2 seul', auto: 'r2:1' }, { id: 'n4', txt: 'Présenter et signer seul un module spécifique', choix: 'module', forman: true } ] },
   { id: 'clients', lib: 'Clients', etapes: [ { id: 'c1', txt: 'Mon premier client signé', auto: 'clients:1' }, { id: 'n7', txt: '2 foyers fiscaux clients', auto: 'clients:2', forman: true }, { id: 'c3', txt: '3 clients', auto: 'clients:3' }, { id: 'c10', txt: '10 clients', auto: 'clients:10' } ] },
   { id: 'habilitation', lib: 'Habilitation', etapes: [ { id: 'n6', txt: 'Être inscrit au QCM (MIA ou Immobilier-IOBSP)', auto: 'qcm-inscrit', forman: true }, { id: 'n10', txt: 'Être inscrit à l’INPI (30 jours avant le QCM)', auto: 'inpi', forman: true, quand: 'qcm-45' }, { id: 'n9', txt: 'Avoir souscrit ma RCP', auto: 'rcp', forman: true, quand: 'qcm-45' }, { id: 'qcm-ok', txt: 'Valider mon QCM', auto: 'qcm-valide' }, { id: 'orias', txt: 'Obtenir mon numéro ORIAS', auto: 'orias' } ] },
   { id: 'mailmanager', lib: 'Mail Manager', etapes: [ { id: 'n11', txt: 'Envoyer mon Mail Manager chaque semaine', auto: 'mailmanager', forman: true } ] },
-  { id: 'dev', lib: 'Développement', etapes: [ { id: 'dm1', txt: 'Inviter une première personne à une Découverte Métier' }, { id: 'n12', txt: 'Suivre la formation Développement Équipe niveau 1', auto: 'dev-n1', forman: true } ] }
+  /* v1.8 : deux étapes sans ordre entre elles (libre) ; le thème est validé quand les deux sont faites */
+  { id: 'dev', lib: 'Développement', libre: true, etapes: [ { id: 'dm1', txt: 'Inviter une première personne à une Découverte Métier' }, { id: 'n12', txt: 'Suivre la formation Développement Équipe niveau 1', auto: 'dev-n1', forman: true } ] }
 ];
 /* Statuts FORMAN suivants (Beman → Adman → Manager) : objectifs repris tels quels, un objectif = une étape */
 const PARCOURS_FORMAN = [
@@ -474,7 +480,7 @@ const SEMAINES = {
 function etatVide() {
   return {
     schema: 2, versionOutil: CAP_VERSION, creeLe: aujourdhui(),
-    profil: { prenom: '', nom: '', parrain: '', parrainNom: '', rythme: 'partage', dateInscription: aujourdhui(), date3J: '', dateESP: '', statut: 'NEOMAN' },
+    profil: { prenom: '', nom: '', parrain: '', parrainNom: '', rythme: 'partage', methode: 'etudes', dateInscription: aujourdhui(), date3J: '', dateESP: '', statut: 'NEOMAN' },
     habilitation: { formation: '', dateQCM: '', heures: {}, qcmValide: false },
     contacts: [],
     taches: {},          // cle -> { fait:bool, faitLe, sous:{id:bool} }
@@ -527,7 +533,7 @@ function migrer(d) {
 }
 const enCapitales = s => { s = String(s || '').trim(); return s.length > 1 && s === s.toUpperCase() && s !== s.toLowerCase(); };
 function sauver() { try { localStorage.setItem(CLE_STOCK, JSON.stringify(S)); } catch (e) { toast('Enregistrement impossible dans ce navigateur : pense à exporter tes données'); } }
-function noterActivite() { const j = aujourdhui(); S.actif[j] = (S.actif[j] || 0) + 1; }
+function noterActivite() { const j = aujourdhui(); S.actif[j] = (S.actif[j] || 0) + 1; noterAvance(); }
 function maj() { noterActivite(); sauver(); rendre(); }
 
 /* ===== Lecture de l'état ===== */
@@ -545,6 +551,16 @@ const apres3J = () => phase() !== 'atelier';
 const jPlus = () => S.profil.dateInscription ? diffJours(S.profil.dateInscription, aujourdhui()) : 0;
 const jLabel = () => { const j = jPlus(); return j < 0 ? 'J' + j + ' avant mon inscription' : 'J+' + j; };
 const cibleEtudes = () => S.profil.rythme === 'plein' ? 10 : 5;
+/* v1.8 : méthode de prise de rendez-vous après les 3 Jours — études de marché puis rendez-vous (par défaut) ou prise de rendez-vous en direct */
+const methodeDirecte = () => apres3J() && S.profil.methode === 'direct';
+const cibleR1 = () => S.profil.rythme === 'plein' ? 5 : 3;
+function r1Semaine(lundi) { const fin = addJours(lundi, 6); let n = 0; S.contacts.forEach(c => c.evts.forEach(e => { if (e.type === 'RDV' && e.num === 1 && e.date >= lundi && e.date <= fin) n++; })); return n; }
+const LIB_DIRECT = { 'Études de marché': 'Prise de R1 (appels)', 'Envoi des 10 SMS d’études de marché': 'Prise de R1 (appels)', 'Envoi des 5 SMS d’études de marché et Mail Manager': 'Prise de R1 (appels) et Mail Manager' };
+const libMethode = lib => methodeDirecte() ? (LIB_DIRECT[lib] || lib) : lib;
+/* voyant : on retient chaque semaine le plus petit nombre de rendez-vous d'avance observé à l'ouverture de CAP */
+function noterAvance() { if (!S || !S.profil.prenom || !apres3J()) return; const l = lundiCourant(); S.hebdo[l] = S.hebdo[l] || {}; const h = S.hebdo[l], n = rdvAvance(); h.avanceMin = h.avanceMin == null ? n : Math.min(h.avanceMin, n); }
+/* semaines passées consécutives où le plancher de 3 a été tenu (semaine en cours exclue) */
+function semainesAvance() { let n = 0, l = addJours(lundiCourant(), -7); while (S.hebdo[l] && S.hebdo[l].avanceMin != null && S.hebdo[l].avanceMin >= 3) { n++; l = addJours(l, -7); } return n; }
 function statutContact(c) { if (c.signeLe) return 'client'; if (c.evts.some(e => e.type === 'RDV')) return 'prospect'; return 'contact'; }
 const nbContacts = () => S.contacts.length;
 const clients = () => S.contacts.filter(c => c.signeLe);
@@ -561,7 +577,7 @@ function rdvFaits() { let n = 0; S.contacts.forEach(c => c.evts.forEach(e => { i
 const qualifies = () => S.contacts.filter(c => c.qualifie).length;
 /* Semaine type effective : celle du filleul s'il l'a modifiée, sinon le modèle. Chaque plage a une clé stable jour-début. */
 const cleplage = p => p.k || (p.j + '-' + p.d);
-function semaineType(rythme) { rythme = rythme || S.profil.rythme; const m = S.modele && S.modele[rythme]; return (m && m.length ? m : SEMAINES[rythme] || []).map(p => Object.assign({}, p, { k: cleplage(p) })); }
+function semaineType(rythme) { rythme = rythme || S.profil.rythme; const m = S.modele && S.modele[rythme]; return (m && m.length ? m : SEMAINES[rythme] || []).map(p => Object.assign({}, p, { k: cleplage(p), lib: libMethode(p.lib) })); }
 function personnaliserSemaine(rythme) { rythme = rythme || S.profil.rythme; if (!S.modele[rythme] || !S.modele[rythme].length) S.modele[rythme] = semaineType(rythme); return S.modele[rythme]; }
 function palierSuivant(paliers, val) { return paliers.find(p => p > val) || paliers[paliers.length - 1]; }
 function palierPrecedent(paliers, val) { let p = 0; paliers.forEach(x => { if (x <= val) p = x; }); return p; }
@@ -640,6 +656,8 @@ function evalAuto(code) {
     case 'qcm-valide': return !!S.habilitation.qcmValide;
     case 'orias': { const t = S.taches['apres-qcm']; return !!(t && t.sous && (t.sous['orias-mia'] || t.sous['orias-iobsp'])); }
     case 'dm': return !!(S.taches.dm && S.taches.dm.fait);
+    case 'story': return faite('story');
+    case 'avance': return semainesAvance() >= n;
     default: return false;
   }
 }
@@ -651,7 +669,7 @@ function objectifsEvalues() {
   return niveauForman().objectifs.map(o => {
     const etapes = (o.etapes || [{ id: o.id, txt: o.txt, auto: o.auto, forman: !o.auto }]).map(e => Object.assign({}, e, { ok: etapeOk(e) }));
     const faites = etapes.filter(e => e.ok).length, etape = etapes.find(e => !e.ok) || null;
-    return { id: o.id, lib: o.lib || o.txt, etapes, faites, ok: faites === etapes.length, etape, actuel: !etape || etapeActuelle(etape) };
+    return { id: o.id, lib: o.lib || o.txt, libre: !!o.libre, etapes, faites, ok: faites === etapes.length, etape, actuel: !etape || etapeActuelle(etape) };
   });
 }
 
@@ -688,19 +706,23 @@ const TACHES = [
       { id: 'jour', txt: 'Ajouter des noms aujourd’hui', ok: () => S.contacts.some(c => c.ajoute === aujourdhui()) }
     ],
     actions: () => '<button class="btn petit" data-act="nouveau-contact">Ajouter un nom</button><button class="btn petit ligne" data-act="voir-primo">Importer / ouvrir</button>' },
-  { cle: 'etudes', type: 'hebdo', axe: 'Rendez-vous', prio: 30, badge: 'etudes',
-    titre: () => `Mes ${cibleEtudes()} études de marché de la semaine`,
-    detail: () => 'Elles alimentent les rendez-vous d’après les 3 Jours. Les SMS partent le vendredi pour la semaine suivante.',
+  /* v1.8 : la même carte hebdo change de visage selon la méthode choisie après les 3 Jours (études de marché, ou prise de R1 en direct) */
+  { cle: 'etudes', type: 'hebdo', axe: 'Rendez-vous', prio: 30, badge: () => methodeDirecte() ? 'rdv' : 'etudes',
+    titre: () => methodeDirecte() ? `Mes ${cibleR1()} R1 à planifier cette semaine` : `Mes ${cibleEtudes()} études de marché de la semaine`,
+    detail: () => methodeDirecte() ? 'Prise de rendez-vous en direct : un créneau d’appels, et les R1 de la semaine posés dans l’agenda. Une étude de marché reste possible depuis une fiche contact.' : 'Elles alimentent les rendez-vous d’après les 3 Jours. Les SMS partent le vendredi pour la semaine suivante.',
     visible: () => true,
-    sous: () => { const n = etudesSemaine(lundiCourant()), c = cibleEtudes(); return [
+    sous: () => { if (methodeDirecte()) { const n = r1Semaine(lundiCourant()), c = cibleR1(); return [
+        { id: 'appels', txt: 'Passer mes appels sur mon créneau de prise de R1' },
+        { id: 'r1', txt: `R1 planifiés cette semaine (${n}/${c}), ou cocher si c’est déjà fait`, manuel: true, ok: () => n >= c } ]; }
+      const n = etudesSemaine(lundiCourant()), c = cibleEtudes(); return [
       { id: 'sms', txt: `Envoyer mes ${c} SMS` },
       { id: 'calees', txt: `Planifier chaque étude avec sa date (${n}/${c}), ou cocher si c’est déjà fait`, manuel: true, ok: () => n >= c }
     ]; },
-    actions: () => '<button class="btn petit" data-act="nouvelle-etude">Planifier une étude</button>' },
+    actions: () => methodeDirecte() ? '<button class="btn petit" data-act="nouveau-rdv">Planifier un R1</button>' : '<button class="btn petit" data-act="nouvelle-etude">Planifier une étude</button>' },
   { cle: 'story', type: 'ponctuelle', axe: 'Rendez-vous', prio: 15,
     titre: () => 'Ma story',
     detail: () => 'Elle est faite quand ton parrain l’a validée.',
-    visible: () => faite('inscription-3j'),
+    visible: () => faite('inscription-3j') && !apres3J(),   /* v1.8 : après les 3 Jours, la story est un objectif Vers Manager, pas une carte */
     sous: () => [ { id: 'finaliser', txt: 'Finaliser ma story' }, { id: 'envoyer', txt: 'L’envoyer à mon parrain et obtenir sa validation' } ] },
   { cle: 'qualif', type: 'continue', axe: 'Rendez-vous', prio: 33, badge: 'qualif',
     titre: () => `Qualifier ${CIBLE_QUALIF} noms de ma primo-liste`,
@@ -837,6 +859,7 @@ function vueAccueil() {
       <label class="champ">Nom de mon parrain<input type="text" name="parrainNom" required></label></div>
       <label class="champ">Date de mon inscription dans le réseau<input type="date" name="dateInscription" value="${aujourdhui()}" required><span class="petit muted" style="font-weight:400">C’est le jour J0 de ton parcours. Tu peux déjà utiliser CAP avant.</span></label>
       <label class="champ">Mon rythme<select name="rythme"><option value="partage">Temps partagé</option><option value="plein">Temps plein</option></select></label>
+      <label class="champ">Ma méthode de prise de rendez-vous, après les 3 Jours<select name="methode"><option value="etudes">Études de marché, puis rendez-vous</option><option value="direct">Prise de rendez-vous en direct</option></select><span class="petit muted" style="font-weight:400">Modifiable à tout moment dans Réglages.</span></label>
       <div class="actions"><button class="btn" type="submit">Commencer</button><button class="btn discret" type="button" data-act="restaurer">J’ai déjà une sauvegarde</button></div>
     </form></div></div>`;
 }
@@ -849,7 +872,7 @@ function vueVoyant() {
   const n = rdvAvance(), ok = n >= 3;
   return `<section class="carte voyant ${ok ? 'vert' : 'rouge'}"><span class="pt" aria-hidden="true"></span>
     <div style="flex:1"><button type="button" class="lien-voyant" data-act="rdv-avance"><b>${n} rendez-vous d’avance</b></button><div class="petit muted">${ok ? 'Le plancher de 3 est tenu.' : `Il en manque ${3 - n} pour tenir le plancher de 3.`} <span class="muted">Clique pour voir la liste.</span></div></div>
-    ${ok ? '' : '<div class="actions"><button class="btn petit" data-act="proposer" data-quoi="r1">Planifier un créneau de prise de R1</button><button class="btn petit ligne" data-act="proposer" data-quoi="etude">Planifier un créneau d’étude</button></div>'}</section>`;
+    ${ok ? '' : '<div class="actions"><button class="btn petit" data-act="proposer" data-quoi="r1">Planifier un créneau de prise de R1</button>' + (methodeDirecte() ? '' : '<button class="btn petit ligne" data-act="proposer" data-quoi="etude">Planifier un créneau d’étude</button>') + '</div>'}</section>`;
 }
 function champSous(t, s) {
   const id = `${t.cle}--${s.id}`;
@@ -887,7 +910,7 @@ function carteTache(t) {
   return `<details class="carte tache ${t.type}" data-cle="${t.cle}" ${ouverte ? 'open' : ''}><summary><div class="type">${typeLib} · ${esc(t.axe)}</div><h3>${esc(t.titre())}</h3>
     ${j ? `<div class="jauge" role="img" aria-label="${esc(j.txt)}"><i style="width:${Math.round(Math.min(1, j.pct) * 100)}%"></i></div>` : ''}
     ${resume ? `<div class="petit tnum resume"><b>${esc(resume)}</b><span class="ouvrir" aria-hidden="true"></span></div>` : `<div class="petit resume"><span class="ouvrir" aria-hidden="true"></span></div>`}
-    ${t.badge ? ligneBadge(t.badge) : ''}</summary>
+    ${t.badge ? ligneBadge(typeof t.badge === 'function' ? t.badge() : t.badge) : ''}</summary>
     <div class="contenu">${t.detail && t.detail() ? `<div class="petit muted">${esc(t.detail())}</div>` : ''}
     <div>${lignes}</div><div class="pied">${t.actions ? t.actions() : ''}${planifTache(t)}</div></div></details>`;
 }
@@ -994,13 +1017,17 @@ function vueParcours() {
   const nv = niveauForman(), objs = objectifsEvalues(), valides = objs.filter(o => o.ok), restants = objs.filter(o => !o.ok && o.actuel), plusTard = objs.filter(o => !o.ok && !o.actuel), cli = clients().length;
   const choix = `<label class="champ petit" for="statut">Mon statut FORMAN actuel<select id="statut" data-cible="profil.statut">${PARCOURS_FORMAN.map(n => `<option value="${n.statut}" ${nv.statut === n.statut ? 'selected' : ''}>${n.lib}</option>`).join('')}</select></label>`;
   /* Un objectif = un thème dont l'étape évolue ; 5 au plus, dans l'ordre du parcours ; les validés sont seulement comptés */
-  const ligne = o => {
-    const e = o.etape, manuel = !!(S.parcours[e.id] && S.parcours[e.id].fait);
-    const etat = o.etapes.length > 1 ? `<span class="petit muted tnum"> · étape ${o.faites + 1} sur ${o.etapes.length}</span>` : '';
+  const coche = e => {
+    const manuel = !!(S.parcours[e.id] && S.parcours[e.id].fait);
     const sel = e.choix === 'module' ? `<select data-parcours-choix="${e.id}" aria-label="Module signé"><option value="">Quel module ?</option>${MODULES.map(([v, l]) => `<option value="${v}" ${(S.parcours.modules || {})[e.id] === v ? 'selected' : ''}>${l}</option>`).join('')}</select>` : '';
-    const forman = e.forman ? `<div class="petit forman"><a href="${LIEN_FORMAN}" target="_blank" rel="noopener">Objectif FORMAN à valider sur asso-forman</a></div>` : '';
-    return `<div class="objectif"><div class="lib">${esc(o.lib)}${etat}</div>
-      <label class="coche"><input type="checkbox" ${e.ok ? 'checked' : ''} ${e.auto && e.ok && !manuel ? 'disabled' : ''} data-parcours="${e.id}"><span>${esc(e.txt)}${e.auto ? ' <span class="petit muted">· suivi par CAP</span>' : ''}</span></label>${sel}${forman}</div>`;
+    const forman = e.forman ? `<div class="petit forman"><a href="${LIEN_FORMAN}" target="_blank" rel="noopener">${esc(e.formanTxt || 'Objectif FORMAN à valider sur asso-forman')}</a></div>` : '';
+    return `<label class="coche"><input type="checkbox" ${e.ok ? 'checked' : ''} ${e.auto && e.ok && !manuel ? 'disabled' : ''} data-parcours="${e.id}"><span>${esc(e.txt)}${e.auto ? ' <span class="petit muted">· suivi par CAP</span>' : ''}</span></label>${sel}${forman}`;
+  };
+  /* v1.8 : un thème « libre » montre toutes ses étapes à la fois, sans ordre (Développement) ; les autres montrent l'étape en cours */
+  const ligne = o => {
+    if (o.libre) return `<div class="objectif"><div class="lib">${esc(o.lib)}<span class="petit muted tnum"> · ${o.faites} sur ${o.etapes.length}, dans l’ordre que tu veux</span></div>${o.etapes.map(coche).join('')}</div>`;
+    const etat = o.etapes.length > 1 ? `<span class="petit muted tnum"> · étape ${o.faites + 1} sur ${o.etapes.length}</span>` : '';
+    return `<div class="objectif"><div class="lib">${esc(o.lib)}${etat}</div>${coche(o.etape)}</div>`;
   };
   const objectifs = nv.objectifs.length ? `<section class="carte pile"><h2>De ${nv.lib} vers ${nv.vers}</h2>
       <div class="jauge" role="img" aria-label="${valides.length} objectifs validés sur ${objs.length}"><i style="width:${Math.round(valides.length / objs.length * 100)}%"></i></div>
@@ -1084,6 +1111,7 @@ function vueReglages() {
       <label class="champ">Prénom de mon parrain<input type="text" name="parrain" value="${esc(p.parrain)}"></label>
       <label class="champ">Nom de mon parrain<input type="text" name="parrainNom" value="${esc(p.parrainNom || '')}"></label>
       <label class="champ">Mon rythme<select name="rythme"><option value="partage" ${p.rythme === 'partage' ? 'selected' : ''}>Temps partagé</option><option value="plein" ${p.rythme === 'plein' ? 'selected' : ''}>Temps plein</option></select></label>
+      <label class="champ">Ma méthode de prise de rendez-vous, après les 3 Jours<select name="methode"><option value="etudes" ${p.methode !== 'direct' ? 'selected' : ''}>Études de marché, puis rendez-vous</option><option value="direct" ${p.methode === 'direct' ? 'selected' : ''}>Prise de rendez-vous en direct</option></select></label>
       <label class="champ">Date de mon inscription dans le réseau (J0)<input type="date" name="dateInscription" value="${esc(p.dateInscription)}" required></label>
       <label class="champ">Premier jour de mes 3 Jours<input type="date" name="date3J" value="${esc(p.date3J)}"></label>
       <div class="actions" style="align-self:end"><button class="btn" type="submit">Enregistrer</button></div></form>
@@ -1282,7 +1310,7 @@ async function proposerCreneau(quoi) {
   }
   const j0 = jours[0] || { date: addJours(aujourdhui(), 1), heure: modele.d, fin: modele.f };
   const attente = fenetre('Planifier un créneau', `<p>Il te manque des rendez-vous d’avance. Choisis une des plages proposées ou change ce qui ne te va pas.</p>
-    <label class="champ">Créneau<select name="lib"><option ${quoi === 'r1' ? 'selected' : ''}>Prise de R1 (appels)</option><option ${quoi !== 'r1' ? 'selected' : ''}>Études de marché</option></select></label>
+    <label class="champ">Créneau<select name="lib"><option ${quoi === 'r1' ? 'selected' : ''}>Prise de R1 (appels)</option>${methodeDirecte() ? '' : `<option ${quoi !== 'r1' ? 'selected' : ''}>Études de marché</option>`}</select></label>
     ${puces(jours)}
     <div class="form">${champ('Date', 'date', j0.date, 'date', 'required')}${champ('Début', 'd', j0.heure, 'time', 'required')}${champ('Fin', 'f', j0.fin, 'time', 'required')}</div>`, [{ lib: 'Annuler', v: 'annuler', cls: 'discret' }, { lib: 'Ajouter à ma semaine', v: 'ok' }]);
   brancherPuces('date', 'd');
@@ -1646,7 +1674,7 @@ function brancher() {
     }
   });
 }
-function demarrer() { charger(); brancher(); rendre(); }
+function demarrer() { charger(); if (S.profil.prenom) { noterAvance(); sauver(); } brancher(); rendre(); }
 document.addEventListener('DOMContentLoaded', demarrer);
 </script>
 </body>

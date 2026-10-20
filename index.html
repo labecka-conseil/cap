@@ -218,6 +218,35 @@ dialog h3{margin-top:6px}
 .ligne-heures input{width:90px;flex:none}
 .agenda-equipe{width:100%;height:520px;border:1px solid var(--ligne);border-radius:12px;background:#fff}
 @media (max-width:600px){.agenda-equipe{height:420px}}
+/* Rapport pour mon parrain (v1.9) */
+.rapport-cta{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;border-left:4px solid var(--ambre)}
+.rapport{padding-top:12px}
+.rapport-barre{display:flex;gap:8px;align-items:center;flex-wrap:wrap;position:sticky;top:0;background:var(--fond);padding:10px 0;z-index:5;border-bottom:1px solid var(--ligne);margin-bottom:12px}
+.rapport-barre .esp{flex:1}
+.rapport-tete{display:flex;flex-direction:column;gap:4px;margin:8px 0 18px}
+.rapport-tete h1{font-size:28px;font-weight:800}
+.rapport .kpis{margin-bottom:14px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.rapport .kpi .val{font-size:26px}
+.rapport-2col{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));align-items:start}
+.rapport-liste{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
+.rapport-liste li{padding:6px 0;border-top:1px solid var(--ligne)}
+.rapport-liste li:first-child{border-top:0;padding-top:0}
+.rapport-liste li.fait{color:var(--muted)}
+.rapport-badges{display:flex;flex-direction:column;gap:6px}
+.rapport-pied{margin-top:18px;border-top:1px solid var(--ligne);padding-top:10px}
+@media print{
+  :root,:root:not([data-theme="light"]),:root[data-theme="dark"]{color-scheme:light;--fond:#fff;--carte:#fff;--sable:#EFE6D6;--ligne:#D8D2C6;--ligne-forte:#CDC3B2;--encre:#1E2A26;--encre-2:#46524E;--muted:#5E6B66;--vert:#1F6F5C;--vert-fonce:#154D40;--vert-doux:#DDEBE4;--ambre:#E08A3C;--ambre-fonce:#9E5620;--ambre-doux:#FBE7D3;--bleu:#3A6EA5;--bleu-doux:#E1EAF4;--pos:#158A64;--pos-txt:#0F6B4D;--pos-fond:#DCF1E7;--neg:#B4452E;--neg-txt:#A03A24;--neg-fond:#F7E2DC}
+  @page{margin:12mm}
+  body{background:#fff;font-size:12px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .no-print,#toast,dialog{display:none!important}
+  .page{max-width:none;padding:0}
+  .rapport-tete{margin:0 0 10px}.rapport-tete h1{font-size:22px}.rapport-tete .marque{font-size:22px}
+  .carte{box-shadow:none;break-inside:avoid;padding:10px 12px;border-radius:10px}
+  .rapport .kpis{grid-template-columns:repeat(3,1fr);gap:8px}.rapport .kpi .val{font-size:20px}
+  .rapport-2col{grid-template-columns:1fr 1fr;gap:8px}
+  h2{font-size:15px}.petit{font-size:11px}
+  .jauge{height:7px}.med.petite{width:18px}
+}
 </style>
 </head>
 <body>
@@ -252,7 +281,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 <script>/* ===== CAP — moteur de l'outil du nouveau conseiller =====
    Données stockées dans le navigateur (localStorage), exportables et réimportables (portabilité entre versions). */
 'use strict';
-const CAP_VERSION = '1.8';
+const CAP_VERSION = '1.9';
 const CLE_STOCK = 'cap-donnees';
 const LIEN_ATELIERS = 'https://asso-forman.fr/#/auth/workshop';
 const LIEN_CAP = 'https://labecka-conseil.github.io/cap/';
@@ -773,7 +802,7 @@ const TACHES = [
     detail: () => 'Ta semaine passée, ta semaine à venir et où tu en es sur tes objectifs.',
     visible: () => apres3J(),
     sous: () => [ { id: 'envoye', txt: 'Envoyer mon Mail Manager' } ],
-    actions: () => '<button class="btn petit ligne" data-act="mail-manager">Préparer le texte</button>' },
+    actions: () => '<button class="btn petit ligne" data-act="mail-manager">Préparer le texte</button><button class="btn petit discret" data-act="rapport">Mon rapport (PDF)</button>' },
   /* Pas de tâche Développement en première page (18/10/2026) : la Découverte Métier est un objectif « Vers Manager », parmi les derniers */
   { cle: 'formations', type: 'continue', axe: 'Formations et événements', prio: 40, badge: 'formations',
     titre: () => 'Mes formations Forman niveau 1',
@@ -823,7 +852,7 @@ function jalon() {
 }
 
 /* ===== Affichage ===== */
-const VUE = { ouvertes: [], onglet: 'semaine', lundi: null, filtre: 'tous', cherche: '', limite: 150, devFiltre: 'arelire', devCherche: '', devLimite: 100 };
+const VUE = { rapport: false, ouvertes: [], onglet: 'semaine', lundi: null, filtre: 'tous', cherche: '', limite: 150, devFiltre: 'arelire', devCherche: '', devLimite: 100 };
 /* L'onglet Développement est là dès le début (optionnel) ; Vers Manager s'ouvre après les 3 Jours. */
 /* 6 onglets (18/10/2026) : prospection, clients et développement vivent ensemble dans « Mon activité » */
 const onglets = () => [['semaine', 'Ma semaine'], ['primo', 'Mon activité'], ['formations', 'Formations et événements']].concat(apres3J() ? [['parcours', 'Vers Manager']] : []).concat([['chiffres', 'Mes chiffres'], ['reglages', 'Réglages']]);
@@ -838,6 +867,7 @@ function rendre() {
   else if (BADGES_INITIAUX) { toast(`${BADGES_INITIAUX} badge${BADGES_INITIAUX > 1 ? 's' : ''} déjà obtenu${BADGES_INITIAUX > 1 ? 's' : ''} : à voir dans Mes chiffres`); BADGES_INITIAUX = 0; }
   const app = $('#app');
   if (!S.profil.prenom) { app.innerHTML = vueAccueil(); return; }
+  if (VUE.rapport) { app.innerHTML = vueRapport(); return; }
   if (!VUE.lundi) VUE.lundi = lundiCourant();
   const vues = { semaine: vueSemaine, primo: vueActivite, formations: vueFormations, parcours: vueParcours, chiffres: vueChiffres, reglages: vueReglages };
   if (!vues[VUE.onglet] || !onglets().some(([k]) => k === VUE.onglet)) VUE.onglet = 'semaine';
@@ -919,7 +949,11 @@ function vueSemaine() {
   const verrou = phase() === 'atelier' ? '<div class="verrous"><span>La suite se débloque après les 3 Jours de la Réussite</span></div>' : '';
   /* Agenda à gauche, les 3 prochaines actions à droite (ordinateur) ; sur téléphone, les actions repliées puis la semaine */
   return `<div class="semaine-2col"><div class="col-agenda">${vueAgenda()}</div>
-    <aside class="col-actions pile">${vueJalon()}${vueVoyant()}<section class="pile"><h2>Mes 3 prochaines actions</h2>${act.length ? `<div class="taches">${act.map(carteTache).join('')}</div>` : '<div class="carte vide">Tout est fait pour cette semaine.</div>'}${verrou}</section></aside></div>`;
+    <aside class="col-actions pile">${vueJalon()}${vueVoyant()}<section class="pile"><h2>Mes 3 prochaines actions</h2>${act.length ? `<div class="taches">${act.map(carteTache).join('')}</div>` : '<div class="carte vide">Tout est fait pour cette semaine.</div>'}${verrou}</section>${vueRapportCta()}</aside></div>`;
+}
+/* Rapport pour le parrain (v1.9) : le conseiller choisit quand il l'envoie, avant un point par exemple */
+function vueRapportCta() {
+  return `<section class="carte rapport-cta"><div><b>Pour mon parrain</b><div class="petit muted">Ma semaine, mes actions et mes objectifs sur une page, en PDF ou en texte.</div></div><button class="btn petit ligne" data-act="rapport">Préparer mon rapport</button></section>`;
 }
 function plagesDuJour(date) {
   const j = jourSemaine(date), a3 = apres3J() || (S.profil.date3J && date > fin3J());
@@ -1633,6 +1667,11 @@ function brancher() {
       case 'rdv-avance': fenetreRdvAvance(); break;
       case 'voir-dev': VUE.onglet = 'primo'; rendre(); break;
       case 'mail-manager': fenetreMailManager(); break;
+      case 'rapport': ouvrirRapport(); break;
+      case 'rapport-retour': fermerRapport(); break;
+      case 'rapport-pdf': rapportPdf(); break;
+      case 'rapport-partager': rapportPartager(); break;
+      case 'rapport-copier': copier(texteRapport()); break;
       case 'plus': VUE.limite += 150; rendre(); break;
       case 'dev-plus': VUE.devLimite += 100; rendre(); break;
       case 'potentiel': c.potentiel = !c.potentiel; maj(); break;
@@ -1676,6 +1715,93 @@ function brancher() {
 }
 function demarrer() { charger(); if (S.profil.prenom) { noterAvance(); sauver(); } brancher(); rendre(); }
 document.addEventListener('DOMContentLoaded', demarrer);
+
+/* ===== Rapport pour mon parrain (v1.9, 20/10/2026) =====
+   Une page lisible par le parrain, à la charte, générée dans CAP : la semaine passée, la semaine à venir,
+   les actions en cours, les objectifs, l'habilitation, les formations et les badges.
+   Le conseiller l'enregistre en PDF (impression du navigateur) ou partage le texte ; c'est lui qui choisit quand l'envoyer.
+   Noms des contacts en prénom + initiale (nomCourt), jamais le nom complet. */
+const pl = (n, un, des) => n > 1 ? des : un;
+const dateLongue = s => deIso(s).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+function donneesRapport() {
+  const l = lundiCourant(), fin = addJours(l, 6), a = aujourdhui();
+  const tous = []; S.contacts.forEach(c => c.evts.forEach(e => tous.push({ c, e })));
+  const tri = x => x.sort((p, q) => (p.e.date + (p.e.heure || '')).localeCompare(q.e.date + (q.e.heure || '')));
+  const semaine = tri(tous.filter(x => x.e.date >= l && x.e.date <= fin));
+  const aVenir = tri(tous.filter(x => !x.e.fait && x.e.date >= a && x.e.date > fin)).slice(0, 12);
+  const rdvP = semaine.filter(x => x.e.type === 'RDV'), emP = semaine.filter(x => x.e.type === 'EM');
+  const h = HABILITATIONS[S.habilitation.formation];
+  const posees = FORMATIONS_FORMAN.filter(t => S.formations[t] && S.formations[t].date).sort((x, y) => S.formations[x].date.localeCompare(S.formations[y].date));
+  const badges = BADGES.flatMap(b => badgesObtenus(b.fam)).sort((x, y) => String(y.le).localeCompare(String(x.le)));
+  const objs = apres3J() ? objectifsEvalues() : [];
+  return { l, fin, a, semaine, aVenir, rdvP, rdvF: rdvP.filter(x => x.e.fait), emP, emF: emP.filter(x => x.e.fait), avance: rdvAvance(), h,
+    formAVenir: posees.filter(t => S.formations[t].date >= a), formSuivies: posees.filter(t => S.formations[t].date < a), formAPoser: FORMATIONS_FORMAN.filter(t => !S.formations[t] || !S.formations[t].date),
+    badges, taches: tachesActives(), objs, objsOk: objs.filter(o => o.ok), objsRestants: objs.filter(o => !o.ok && o.actuel).slice(0, 5), nv: niveauForman(), serie: semainesActives() };
+}
+const etatEvt = e => { const f = e.type === 'EM'; return e.fait ? (f ? 'faite' : 'fait') : e.date < aujourdhui() ? (f ? 'pas marquée faite' : 'pas marqué fait') : 'à venir'; };
+const ligneEvt = ({ c, e }) => `${fmtDate(e.date, true)}${e.heure ? ' ' + e.heure : ''} : ${e.type === 'EM' ? 'étude de marché' : libRdv(e)} avec ${nomCourt(c)} (${etatEvt(e)})`;
+function vueRapport() {
+  const d = donneesRapport(), p = S.profil, moi = nomComplet({ prenom: p.prenom, nom: p.nom }), parrain = p.parrain ? nomComplet({ prenom: p.parrain, nom: p.parrainNom }) : '';
+  const evt = x => `<li class="${x.e.fait ? 'fait' : ''}"><span class="puce ${x.e.type === 'EM' ? 'em' : x.e.num === 'X' ? 'rx' : ''}">${libRdv(x.e)}</span>${esc(fmtDate(x.e.date, true))}${x.e.heure ? ' ' + esc(x.e.heure) : ''} · <b>${esc(nomCourt(x.c))}</b><span class="muted"> · ${etatEvt(x.e)}</span></li>`;
+  const kpi = (lib, val, sous) => `<div class="carte kpi"><div class="lib">${lib}</div><div class="val">${val}</div>${sous ? `<div class="petit muted">${sous}</div>` : ''}</div>`;
+  const tache = t => { const ss = sousDe(t).filter(s => !s.champ), nOk = ss.filter(s => s.estOk).length, j = t.jauge ? t.jauge() : null;
+    return `<li><b>${esc(t.titre())}</b> <span class="petit muted">· ${esc(t.axe)}${j ? ' · ' + esc(j.txt) : ss.length ? ` · ${nOk} / ${ss.length} fait${nOk > 1 ? 's' : ''}` : ''}</span>${ss.length && !j ? `<div class="petit muted">${ss.map(s => `${s.estOk ? '✓' : '·'} ${esc(s.txt)}`).join('<br>')}</div>` : ''}</li>`; };
+  const objectif = o => `<li>${esc(o.lib)}${o.etapes.length > 1 ? ` <span class="petit muted">· étape ${o.faites + 1} sur ${o.etapes.length}</span>` : ''}${o.libre ? `<div class="petit muted">${o.etapes.map(e => `${e.ok ? '✓' : '·'} ${esc(e.txt)}`).join('<br>')}</div>` : o.etape ? `<div class="petit muted">${esc(o.etape.txt)}</div>` : ''}</li>`;
+  const contexte = [p.rythme === 'plein' ? 'temps plein' : 'temps partagé', jLabel(), apres3J() ? 'statut ' + d.nv.lib : (p.date3J ? '3 Jours de la Réussite le ' + fmtDate(p.date3J, true) : 'date des 3 Jours à fixer')].join(' · ');
+  return `<div class="page rapport">
+    <div class="rapport-barre no-print"><button class="btn petit discret" data-act="rapport-retour">‹ Retour à CAP</button><div class="esp"></div>
+      <button class="btn petit" data-act="rapport-pdf">Enregistrer en PDF</button>${navigator.share ? '<button class="btn petit ligne" data-act="rapport-partager">Partager</button>' : ''}<button class="btn petit ligne" data-act="rapport-copier">Copier le texte</button></div>
+    <p class="petit muted no-print">« Enregistrer en PDF » ouvre l’impression de ton navigateur : choisis « Enregistrer au format PDF » comme imprimante, puis envoie le fichier à ton parrain.</p>
+    <header class="rapport-tete"><div class="marque">CAP</div><h1>Rapport de ${esc(moi)}</h1>
+      <div class="petit">${parrain ? `Pour ${esc(parrain)} · ` : ''}semaine du ${esc(fmtDate(d.l))} au ${esc(fmtDate(d.fin))} · établi le ${esc(dateLongue(d.a))}</div>
+      <div class="petit muted">${esc(contexte)}</div></header>
+    <section class="grille kpis">
+      ${kpi('Rendez-vous cette semaine', `${d.rdvF.length} <span class="petit muted">${pl(d.rdvF.length, 'fait', 'faits')} / ${d.rdvP.length} ${pl(d.rdvP.length, 'prévu', 'prévus')}</span>`)}
+      ${kpi('Études de marché', `${d.emF.length} <span class="petit muted">${pl(d.emF.length, 'faite', 'faites')} / ${d.emP.length} ${pl(d.emP.length, 'planifiée', 'planifiées')}</span>`, `objectif ${cibleEtudes()} par semaine`)}
+      ${kpi('Rendez-vous d’avance', `${d.avance} <span class="petit muted">/ 3</span>`, d.avance >= 3 ? 'plancher tenu' : `il en manque ${3 - d.avance}`)}
+      ${kpi('Primo-liste', `${nf(nbContacts())} <span class="petit muted">/ 500</span>`, `${nf(qualifies())} ${pl(qualifies(), 'qualifié', 'qualifiés')}`)}
+      ${kpi('Prospects et clients', `${S.contacts.filter(c => statutContact(c) === 'prospect').length} <span class="petit muted">${pl(S.contacts.filter(c => statutContact(c) === 'prospect').length, 'prospect', 'prospects')}</span> · ${clients().length} <span class="petit muted">${pl(clients().length, 'client', 'clients')}</span>`)}
+      ${kpi('Semaines actives d’affilée', d.serie, `${etudesTotal()} ${pl(etudesTotal(), 'étude', 'études')} et ${rdvFaits()} rendez-vous ${pl(etudesTotal() + rdvFaits(), 'mené', 'menés')} au total`)}</section>
+    <div class="rapport-2col">
+    <section class="carte pile"><h2>Ma semaine du ${esc(fmtDate(d.l))}</h2>${d.semaine.length ? `<ul class="rapport-liste">${d.semaine.map(evt).join('')}</ul>` : '<div class="petit muted">Aucun rendez-vous ni étude cette semaine.</div>'}</section>
+    <section class="carte pile"><h2>À venir</h2>${d.aVenir.length ? `<ul class="rapport-liste">${d.aVenir.map(evt).join('')}</ul>` : '<div class="petit muted">Rien de planifié après cette semaine.</div>'}</section>
+    <section class="carte pile"><h2>Mes actions en cours</h2>${d.taches.length ? `<ul class="rapport-liste">${d.taches.map(tache).join('')}</ul>` : '<div class="petit muted">Tout est fait pour cette semaine.</div>'}</section>
+    ${apres3J() ? `<section class="carte pile"><h2>De ${esc(d.nv.lib)} vers ${esc(d.nv.vers)}</h2>${d.objs.length ? `<div class="jauge" role="img" aria-label="${d.objsOk.length} objectifs validés sur ${d.objs.length}"><i style="width:${Math.round(d.objsOk.length / d.objs.length * 100)}%"></i></div><div class="petit tnum"><b>${d.objsOk.length} objectif${d.objsOk.length > 1 ? 's' : ''} validé${d.objsOk.length > 1 ? 's' : ''} sur ${d.objs.length}</b></div>${d.objsRestants.length ? `<ul class="rapport-liste">${d.objsRestants.map(objectif).join('')}</ul>` : ''}` : '<div class="petit muted">Cap Manager atteint.</div>'}</section>` : ''}
+    <section class="carte pile"><h2>Mon habilitation</h2>${d.h ? `<div><b>${esc(d.h.lib)}</b> · QCM ${S.habilitation.dateQCM ? (S.habilitation.qcmValide ? 'validé' : 'le ' + esc(fmtDate(S.habilitation.dateQCM, true)) + ' (J-' + diffJours(d.a, S.habilitation.dateQCM) + ')') : 'date à fixer'}</div><div class="petit tnum">${nf(heuresFaites())} h de révision validées sur ${d.h.heures} h${S.habilitation.dateQCM && !S.habilitation.qcmValide ? ` · ${cibleRevision()} h par semaine d’ici le QCM` : ''}</div>${jaugeGlissante([d.h.heures], heuresFaites(), 'h')}` : `<div class="petit muted">${apres3J() ? 'Première habilitation pas encore choisie (MIA préconisé).' : 'Se choisit après les 3 Jours de la Réussite.'}</div>`}</section>
+    <section class="carte pile"><h2>Mes formations Forman</h2>
+      ${d.formAVenir.length ? `<ul class="rapport-liste">${d.formAVenir.map(t => `<li>${esc(fmtDate(S.formations[t].date, true))} · <b>${esc(t)}</b></li>`).join('')}</ul>` : ''}
+      <div class="petit muted">${d.formSuivies.length} suivie${d.formSuivies.length > 1 ? 's' : ''}${d.formSuivies.length ? ' (' + d.formSuivies.map(esc).join(', ') + ')' : ''} · ${d.formAVenir.length} à venir · ${d.formAPoser.length} à positionner${d.formAPoser.length ? ' : ' + d.formAPoser.map(esc).join(', ') : ''}</div></section>
+    <section class="carte pile"><h2>Mes badges <span class="muted tnum">· ${nbBadges()}</span></h2>${d.badges.length ? `<div class="rapport-badges">${d.badges.slice(0, 6).map(b => `<div class="badge-ligne ok">${medaille(true, true, b.seuil)}<span><b>${esc(b.txt)}</b><span class="petit muted"> · ${esc(fmtDate(b.le))}</span></span></div>`).join('')}</div>${d.badges.length > 6 ? `<div class="petit muted">et ${d.badges.length - 6} autre${d.badges.length > 7 ? 's' : ''}</div>` : ''}` : '<div class="petit muted">Aucun badge pour l’instant.</div>'}</section>
+    </div>
+    <footer class="petit muted rapport-pied">Établi avec CAP, à partir des éléments saisis par ${esc(p.prenom)}. ${esc(LIEN_CAP)}</footer></div>`;
+}
+function texteRapport() {
+  const d = donneesRapport(), p = S.profil, moi = nomComplet({ prenom: p.prenom, nom: p.nom });
+  const bloc = (titre, lignes, vide) => `\n${titre}\n${lignes.length ? lignes.map(x => '- ' + x).join('\n') : '- ' + vide}`;
+  return `Rapport CAP de ${moi} – semaine du ${fmtDate(d.l)} au ${fmtDate(d.fin)}${p.parrain ? `\nPour ${nomComplet({ prenom: p.parrain, nom: p.parrainNom })}` : ''}\nÉtabli le ${dateLongue(d.a)}\n` +
+    bloc('Ma semaine', [`Rendez-vous : ${d.rdvF.length} ${pl(d.rdvF.length, 'fait', 'faits')} sur ${d.rdvP.length} ${pl(d.rdvP.length, 'prévu', 'prévus')}`, `Études de marché : ${d.emF.length} ${pl(d.emF.length, 'faite', 'faites')} sur ${d.emP.length} ${pl(d.emP.length, 'planifiée', 'planifiées')} (objectif ${cibleEtudes()})`, `Rendez-vous d’avance : ${d.avance} / 3`].concat(d.semaine.map(ligneEvt)), '') +
+    bloc('À venir', d.aVenir.map(ligneEvt), 'rien de planifié pour l’instant') +
+    bloc('Mes actions en cours', d.taches.map(t => { const j = t.jauge ? t.jauge() : null, ss = sousDe(t).filter(s => !s.champ); return t.titre() + (j ? ' (' + j.txt + ')' : ss.length ? ` (${ss.filter(s => s.estOk).length} / ${ss.length})` : ''); }), 'tout est fait') +
+    bloc('Mes chiffres', [`Primo-liste : ${nf(nbContacts())} ${pl(nbContacts(), 'nom', 'noms')}, ${nf(qualifies())} ${pl(qualifies(), 'qualifié', 'qualifiés')}`, `Prospects : ${S.contacts.filter(c => statutContact(c) === 'prospect').length} · Clients : ${clients().length}`, `Semaines actives d’affilée : ${d.serie}`, `Badges : ${nbBadges()}`], '') +
+    (apres3J() ? bloc(`Objectifs ${d.nv.lib} vers ${d.nv.vers} : ${d.objsOk.length} validés sur ${d.objs.length}`, d.objsRestants.map(o => o.lib + (o.etape ? ' : ' + o.etape.txt : '')), 'tous validés') : '') +
+    (d.h ? bloc('Habilitation', [`${d.h.lib} · ${nf(heuresFaites())} h validées sur ${d.h.heures} h` + (S.habilitation.dateQCM ? ` · QCM ${S.habilitation.qcmValide ? 'validé' : 'le ' + fmtDate(S.habilitation.dateQCM, true)}` : '')], '') : '') +
+    bloc('Formations Forman', d.formAVenir.map(t => `${fmtDate(S.formations[t].date, true)} : ${t}`).concat([`${d.formSuivies.length} ${pl(d.formSuivies.length, 'suivie', 'suivies')} · ${d.formAPoser.length} à positionner`]), '');
+}
+function ouvrirRapport() { VUE.rapport = true; rendre(); window.scrollTo(0, 0); }
+function fermerRapport() { VUE.rapport = false; rendre(); window.scrollTo(0, 0); }
+function rapportPdf() {
+  const titre = document.title, p = S.profil;
+  document.title = `CAP – Rapport ${nomCourt({ prenom: p.prenom, nom: p.nom })} – semaine du ${lundiCourant()}`;
+  const retour = () => { document.title = titre; window.removeEventListener('afterprint', retour); };
+  window.addEventListener('afterprint', retour);
+  try { window.print(); } catch (e) { toast('Impression impossible sur cet appareil : copie le texte'); }
+  setTimeout(retour, 60000);
+}
+async function rapportPartager() {
+  const t = texteRapport();
+  if (navigator.share) { try { await navigator.share({ title: 'Mon rapport CAP', text: t }); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
+  copier(t);
+}
 </script>
 </body>
 </html>

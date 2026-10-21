@@ -262,6 +262,18 @@ dialog h3{margin-top:6px}
 
 /* v1.12 : solutions signées */
 .ligne-solution{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 0;border-top:1px solid var(--ligne)}
+
+/* v1.13 : avis */
+.entete .avis{align-self:center}
+
+/* v1.14 : ma semaine type dans Réglages */
+.st{display:flex;flex-direction:column;gap:6px}
+.st-jour{display:grid;grid-template-columns:92px minmax(0,1fr);gap:8px;border-top:1px solid var(--ligne);padding-top:6px}
+.st-nom{font-weight:700}
+.st-plage{display:grid;grid-template-columns:96px minmax(0,1fr) auto;gap:8px;align-items:center;padding:3px 0}
+.st-plage .h{font-variant-numeric:tabular-nums;font-weight:700;font-size:14px}
+.st-plage .t{font-size:14px}
+@media (max-width:640px){.st-jour{grid-template-columns:1fr}.st-plage{grid-template-columns:80px minmax(0,1fr)}.st-plage .actions{grid-column:2}}
 </style>
 </head>
 <body>
@@ -297,7 +309,10 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 <script>/* ===== CAP — moteur de l'outil du nouveau conseiller =====
    Données stockées dans le navigateur (localStorage), exportables et réimportables (portabilité entre versions). */
 'use strict';
-const CAP_VERSION = '1.12';
+const CAP_VERSION = '1.14';
+const DUREE_RDV = 120, DUREE_EM = 30; /* v1.14 : un rendez-vous se bloque sur 2 h par défaut (ajustable), une étude de marché sur 30 min */
+const dureeDe = e => Number(e && e.duree) || (e && e.type === 'EM' ? DUREE_EM : DUREE_RDV);
+const MAIL_AVIS = 'justyna@labecka-conseil.fr'; /* destinataire du bouton « Donner mon avis sur CAP » (phase de test) */
 const CLE_STOCK = 'cap-donnees';
 const LIEN_ATELIERS = 'https://asso-forman.fr/#/auth/workshop';
 const LIEN_CAP = 'https://labecka-conseil.github.io/cap/';
@@ -899,7 +914,7 @@ function rendre() {
   const vues = { semaine: vueSemaine, primo: vueActivite, formations: vueFormations, parcours: vueParcours, chiffres: vueChiffres, reglages: vueReglages };
   if (!vues[VUE.onglet] || !onglets().some(([k]) => k === VUE.onglet)) VUE.onglet = 'semaine';
   app.innerHTML = `<div class="page">
-    <header class="entete"><div class="marque">CAP<small>${esc(nomComplet({ prenom: S.profil.prenom, nom: S.profil.nom }))} · ${jLabel()}${S.profil.parrain ? ' · parrain : ' + esc(nomComplet({ prenom: S.profil.parrain, nom: S.profil.parrainNom })) : ''}</small></div><div class="esp"></div></header>
+    <header class="entete"><div class="marque">CAP<small>${esc(nomComplet({ prenom: S.profil.prenom, nom: S.profil.nom }))} · ${jLabel()}${S.profil.parrain ? ' · parrain : ' + esc(nomComplet({ prenom: S.profil.parrain, nom: S.profil.parrainNom })) : ''}</small></div><div class="esp"></div><a class="btn petit discret avis" href="${lienAvis()}">Mon avis</a></header>
     <nav class="onglets" role="tablist">${onglets().map(([k, l]) => `<button role="tab" aria-selected="${VUE.onglet === k}" data-onglet="${k}">${l}</button>`).join('')}</nav>
     <main class="pile">${vues[VUE.onglet]()}</main></div>`;
   if (VUE.onglet === 'primo') brancherDepot();
@@ -1009,7 +1024,7 @@ function vueAgenda() {
   }).join('');
   return `<section class="pile"><div class="semaine-nav"><h2 style="flex:1">Mon agenda</h2>
     <button class="btn petit discret" data-act="sem" data-pas="-7" aria-label="Semaine précédente">‹</button><span class="petit"><b>Semaine du ${fmtDate(l)}</b></span><button class="btn petit discret" data-act="sem" data-pas="7" aria-label="Semaine suivante">›</button></div>
-    <div class="actions"><button class="btn petit" data-act="nouveau-rdv">Planifier un rendez-vous</button><button class="btn petit ligne" data-act="nouvelle-etude">Planifier une étude</button><button class="btn petit discret" data-act="ics-semaine">Ajouter la semaine à mon agenda (.ics)</button></div>
+    <div class="actions"><button class="btn petit" data-act="nouveau-rdv">Planifier un rendez-vous</button><button class="btn petit ligne" data-act="nouvelle-etude">Planifier une étude</button><button class="btn petit discret" data-act="ics-semaine">Ajouter la semaine à mon agenda (.ics)</button><button class="btn petit discret" data-act="voir-reglages">Régler ma semaine type</button></div>
     <div class="jours">${html}</div></section>`;
 }
 
@@ -1195,13 +1210,17 @@ function vueReglages() {
       <label class="champ">Date de mon inscription dans le réseau (J0)<input type="date" name="dateInscription" value="${esc(p.dateInscription)}" required></label>
       <label class="champ">Premier jour de mes 3 Jours<input type="date" name="date3J" value="${esc(p.date3J)}"></label>
       <div class="actions" style="align-self:end"><button class="btn" type="submit">Enregistrer</button></div></form>
-      <div class="petit muted">Semaine type : ${(S.modele[p.rythme] && S.modele[p.rythme].length) || Object.keys(S.exceptions).length ? 'tu l’as modifiée dans ton agenda.' : 'celle de ton rythme, telle quelle.'} <button class="btn petit discret" data-act="semaine-origine">Remettre la semaine type d’origine</button></div></section>
+</section>
+    ${vueSemaineType()}
     <section class="carte pile"><h2>Mes données</h2>
       <p class="petit muted">Tout est enregistré sur cet appareil. Exporte une sauvegarde chaque semaine : elle sert aussi à passer sur une nouvelle version de CAP ou sur un autre appareil sans rien perdre.${ds ? ` Dernière sauvegarde : ${fmtDate(ds, true)}.` : ' Aucune sauvegarde pour l’instant.'}</p>
       <div class="actions"><button class="btn" data-act="exporter">Exporter ma sauvegarde</button><button class="btn ligne" data-act="restaurer">Restaurer une sauvegarde</button><button class="btn discret" data-act="effacer">Tout effacer</button></div>
       <div class="petit muted">CAP version ${CAP_VERSION}</div></section>
-    <section class="carte pile"><h2>CAP sur mon téléphone</h2>
-      <p class="petit muted">Adresse : <a href="${LIEN_CAP}">${LIEN_CAP}</a>. Ouvre-la dans Safari (iPhone) ou Chrome (Android), puis « Partager » ou le menu ⋮ et « Sur l’écran d’accueil » : CAP s’ouvre ensuite comme une application. Chaque appareil garde ses propres données ; pour passer de l’un à l’autre, exporte ta sauvegarde ici et restaure-la sur l’autre.</p></section>`;
+    <section class="carte pile"><h2>Mon avis sur CAP</h2>
+      <p class="petit muted">CAP est en phase de test. Ce qui marche, ce qui bloque, ce qui manque : un mail pré-rempli part vers Justyna, tu le complètes et tu l’envoies toi-même. Aucune donnée de ta primo-liste n’est jointe.</p>
+      <div class="actions">${boutonAvis()}</div></section>
+    <section class="carte pile"><h2>CAP sur mon ordinateur et sur mon téléphone</h2>
+      <p class="petit muted">Adresse : <a href="${LIEN_CAP}">${LIEN_CAP}</a>. CAP se travaille d’abord sur ordinateur : mets la page en favori. Sur téléphone, ouvre-la dans Safari (iPhone) ou Chrome (Android), puis « Partager » ou le menu ⋮ et « Sur l’écran d’accueil » : CAP s’ouvre comme une application. Chaque appareil garde ses propres données ; pour passer de l’un à l’autre, exporte ta sauvegarde ici et restaure-la sur l’autre.</p></section>`;
 }
 
 /* ===== Fenêtres ===== */
@@ -1315,11 +1334,11 @@ async function formSignature(c, sol) {
 const enMin = h => { const [a, b] = String(h || '').split(':').map(Number); return (a || 0) * 60 + (b || 0); };
 const enHeure = m => pad(Math.floor(m / 60)) + ':' + pad(m % 60);
 function prochainesPlages(type, duree, n) {
-  n = n || 5; duree = Number(duree) || (type === 'EM' ? 30 : 60);
+  n = n || 5; duree = Number(duree) || (type === 'EM' ? DUREE_EM : DUREE_RDV);
   const bon = lib => { const l = norm(lib); return type === 'EM' ? l.includes('etude') && !l.includes('sms') : l.includes('rendez'); };
   const maint = new Date(), minNow = maint.getHours() * 60 + maint.getMinutes();
   const libre = (date, t, occ, deja) => !occ.some(([a, b]) => t < b && t + duree > a) && !deja.some(x => x.date === date && Math.abs(enMin(x.heure) - t) < duree);
-  const occupe = date => evtsDuJour(date).filter(({ e }) => e.heure).map(({ e }) => { const a = enMin(e.heure); return [a, a + (Number(e.duree) || 60)]; });
+  const occupe = date => evtsDuJour(date).filter(({ e }) => e.heure).map(({ e }) => { const a = enMin(e.heure); return [a, a + dureeDe(e)]; });
   const r = [];
   for (let k = 0; k < 42 && r.length < n; k++) {
     const date = addJours(aujourdhui(), k), occ = occupe(date); let parJour = 0;
@@ -1362,13 +1381,13 @@ async function formEvt(o) {
   const datalist = `<datalist id="dl-noms">${S.contacts.slice(0, 2000).map(x => `<option value="${esc(nomComplet(x))}">`).join('')}</datalist>`;
   const qui = c ? `<p><b>${esc(nomComplet(c))}</b> · ${type === 'EM' ? 'étude de marché' : (c.signeLe ? 'RX, rendez-vous de suivi' : 'R' + (e.num || prochainNumero(c)))}</p>`
     : `<label class="champ">Avec qui<input name="qui" list="dl-noms" required placeholder="Prénom Nom"></label>${datalist}<div class="petit muted">Si la personne n’est pas dans ta primo-liste, elle y est ajoutée automatiquement.</div>`;
-  const libres = o.evt ? [] : prochainesPlages(type, type === 'EM' ? 30 : 60);
+  const libres = o.evt ? [] : prochainesPlages(type, type === 'EM' ? DUREE_EM : DUREE_RDV);
   const p0 = !o.date && libres[0] ? libres[0] : {};
   const num = type === 'RDV' ? (o.evt ? e.num : (c ? prochainNumero(c) : 1)) : null;
   const propose = type === 'RDV' && num !== 'X' && Number(num) >= 2; /* v1.12 : dès le R2, la solution qu'on va proposer et le montant envisagé (facultatifs) */
   const precedent = c && !o.evt ? c.evts.filter(x => x.type === 'RDV' && x.solution).sort((x, y) => (x.date + x.heure).localeCompare(y.date + y.heure)).pop() : null;
   const blocSolution = propose ? `<h3>Ce que je vais proposer <span class="petit muted" style="font-weight:400">(facultatif)</span></h3><div class="form">${choix('Solution', 'solution', e.solution || (precedent ? precedent.solution : ''), [['', '—']].concat(SOLUTIONS))}${champ('Montant envisagé (€)', 'montant', e.montant || (precedent ? precedent.montant : ''), 'number', 'min="0" step="100" inputmode="numeric"')}</div>` : '';
-  const corps = `${qui}${puces(o.date ? [] : libres)}<div class="form">${champ('Date', 'date', e.date || o.date || p0.date || aujourdhui(), 'date', 'required')}${champ('Heure', 'heure', e.heure || p0.heure || '', 'time')}${champ('Durée (min)', 'duree', e.duree || (type === 'EM' ? 30 : 60), 'number', 'min="15" step="15"')}</div>${blocSolution}
+  const corps = `${qui}${puces(o.date ? [] : libres)}<div class="form">${champ('Date', 'date', e.date || o.date || p0.date || aujourdhui(), 'date', 'required')}${champ('Heure', 'heure', e.heure || p0.heure || '', 'time')}${champ('Durée (min)', 'duree', e.duree || (type === 'EM' ? DUREE_EM : DUREE_RDV), 'number', 'min="15" step="15"')}</div>${blocSolution}
     ${type === 'RDV' ? champ('Lien de visio (Zoom, Meet…)', 'visio', e.visio, 'url', 'placeholder="https://"') : ''}<label class="champ">Note<input type="text" name="note" value="${esc(e.note || '')}"></label>
     ${type === 'RDV' && (o.evt ? estR1(e) : (!c || (!c.signeLe && prochainNumero(c) === 1))) ? blocDocsR1(false) : ''}`;
   const btns = o.evt ? [{ lib: 'Supprimer', v: 'suppr', cls: 'discret' }, ...(type === 'EM' && !c.evts.some(x => x.type === 'RDV') ? [{ lib: 'Transformer en R1', v: 'r1', cls: 'ligne' }] : []), { lib: 'Enregistrer', v: 'ok' }]
@@ -1384,7 +1403,7 @@ async function formEvt(o) {
     cible = S.contacts.find(x => norm(nomComplet(x)) === norm(nomSaisi));
     if (!cible) { const [prenom, ...reste] = nomSaisi.split(/\s+/); cible = creerContact({ prenom, nom: reste.join(' ') }, type === 'EM' ? 'etude' : 'rdv'); toast(nomSaisi + ' ajouté à ta primo-liste'); }
   }
-  const champs = { date: r.data.date, heure: r.data.heure, duree: Number(r.data.duree) || 60, visio: type === 'RDV' ? (r.data.visio || '') : '', note: r.data.note || '' };
+  const champs = { date: r.data.date, heure: r.data.heure, duree: Number(r.data.duree) || (type === 'EM' ? DUREE_EM : DUREE_RDV), visio: type === 'RDV' ? (r.data.visio || '') : '', note: r.data.note || '' };
   if (propose) { champs.solution = r.data.solution || ''; champs.montant = r.data.montant ? Number(r.data.montant) : ''; }
   if (o.evt) Object.assign(e, champs);
   else cible.evts.push(Object.assign({ id: uid(), type, num: type === 'EM' ? null : prochainNumero(cible), fait: false }, champs));
@@ -1401,7 +1420,7 @@ async function proposerCreneau(quoi) {
   const a = enMin(modele.d), b = enMin(modele.f), jours = [];
   for (let k = 1; k < 21 && jours.length < 5; k++) {
     const d = addJours(aujourdhui(), k); if (jourSemaine(d) === 7 || (jourSemaine(d) === 6 && S.profil.rythme === 'plein')) continue;
-    const pris = (x, y) => plagesDuJour(d).some(p => enMin(p.d) < y && enMin(p.f) > x) || evtsDuJour(d).some(({ e }) => e.heure && enMin(e.heure) < y && enMin(e.heure) + (Number(e.duree) || 60) > x);
+    const pris = (x, y) => plagesDuJour(d).some(p => enMin(p.d) < y && enMin(p.f) > x) || evtsDuJour(d).some(({ e }) => e.heure && enMin(e.heure) < y && enMin(e.heure) + dureeDe(e) > x);
     const debut = [a].concat((S.profil.rythme === 'plein' ? ['09:00', '14:00', '16:30', '18:30'] : ['12:30', '18:30', '19:30']).map(enMin)).find(x => !pris(x, x + (b - a)));
     if (debut !== undefined) jours.push({ date: d, heure: enHeure(debut), fin: enHeure(debut + (b - a)) });
   }
@@ -1422,7 +1441,7 @@ function joursLibres(duree, n) {
   for (let k = 0; k < 28 && jours.length < (n || 5); k++) {
     const d = addJours(aujourdhui(), k); if (jourSemaine(d) === 7 || (jourSemaine(d) === 6 && S.profil.rythme === 'plein')) continue;
     const maint = new Date(), minNow = k === 0 ? maint.getHours() * 60 + maint.getMinutes() : -1;
-    const pris = (x, y) => plagesDuJour(d).some(p => enMin(p.d) < y && enMin(p.f) > x) || evtsDuJour(d).some(({ e }) => e.heure && enMin(e.heure) < y && enMin(e.heure) + (Number(e.duree) || 60) > x);
+    const pris = (x, y) => plagesDuJour(d).some(p => enMin(p.d) < y && enMin(p.f) > x) || evtsDuJour(d).some(({ e }) => e.heure && enMin(e.heure) < y && enMin(e.heure) + dureeDe(e) > x);
     const debut = (S.profil.rythme === 'plein' ? ['09:00', '11:00', '14:00', '16:30', '18:30'] : ['12:30', '18:00', '18:30', '19:30', '20:30']).map(enMin).find(x => x > minNow && !pris(x, x + duree));
     if (debut !== undefined) jours.push({ date: d, heure: enHeure(debut), fin: enHeure(debut + duree) });
   }
@@ -1486,7 +1505,7 @@ async function semaineOrigine() {
 /* ---- Agenda : fichier .ics (Google, Apple, Outlook) ---- */
 function icsEchap(s) { return String(s || '').replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/,/g, '\\,').replace(/;/g, '\\;'); }
 function icsDate(date, heure) { return date.replace(/-/g, '') + 'T' + (heure || '09:00').replace(':', '') + '00'; }
-function icsFin(date, heure, duree) { const [h, m] = (heure || '09:00').split(':').map(Number); const t = new Date(deIso(date)); t.setHours(h, m + (duree || 60)); return iso(t).replace(/-/g, '') + 'T' + pad(t.getHours()) + pad(t.getMinutes()) + '00'; }
+function icsFin(date, heure, duree) { const [h, m] = (heure || '09:00').split(':').map(Number); const t = new Date(deIso(date)); t.setHours(h, m + (duree || DUREE_RDV)); return iso(t).replace(/-/g, '') + 'T' + pad(t.getHours()) + pad(t.getMinutes()) + '00'; }
 function icsEvt(c, e) {
   const titre = (e.type === 'EM' ? 'Étude de marché' : libRdv(e)) + ' – ' + nomCourt(c);
   const desc = [e.visio ? 'Lien de visio : ' + e.visio : '', e.note || ''].filter(Boolean).join('\n');
@@ -1726,6 +1745,10 @@ function brancher() {
       case 'plage-modif': modifierPlage(b); break;
       case 'plage-retirer': retirerPlage(b); break;
       case 'semaine-origine': semaineOrigine(); break;
+      case 'st-modif': modifierPlageType(b.dataset.k); break;
+      case 'st-retirer': retirerPlageType(b.dataset.k); break;
+      case 'st-ajouter': ajouterPlageType(); break;
+      case 'voir-reglages': VUE.onglet = 'reglages'; rendre(); window.scrollTo(0, 0); break;
       case 'proposer': proposerCreneau(b.dataset.quoi); break;
       case 'planifier-tache': planifierTache(b.dataset.tache); break;
       case 'rdv-avance': fenetreRdvAvance(); break;
@@ -1901,6 +1924,55 @@ async function fenetreDocsR1(c, e) {
   const attente = fenetre(`Documents du R1${c ? ' · ' + nomCourt(c) : ''}`, `${e ? `<p class="petit muted">R1 ${fmtDate(e.date, true)}${e.heure ? ' à ' + e.heure : ''}.</p>` : ''}${blocDocsR1(true, true)}`, [{ lib: 'Fermer', v: 'annuler', cls: 'discret' }]);
   brancherDocsR1();
   await attente;
+}
+
+/* ===== Donner mon avis sur CAP (v1.13, phase de test) : un mail pré-rempli, rien ne part tout seul ===== */
+function lienAvis() {
+  const appareil = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent) ? 'téléphone' : 'ordinateur';
+  const corps = [`CAP version ${CAP_VERSION}, sur ${appareil}.`, '', 'Ce qui a bien marché :', '', '', 'Ce qui m’a bloqué ou que je n’ai pas compris :', '', '', 'Ce qui me manque :', '', '', `Mon prénom et celui de mon parrain : ${S.profil.prenom || ''}${S.profil.parrain ? ' / ' + S.profil.parrain : ''}`].join('\n');
+  return `mailto:${MAIL_AVIS}?subject=${encodeURIComponent('Retour CAP v' + CAP_VERSION)}&body=${encodeURIComponent(corps)}`;
+}
+const boutonAvis = (cls) => `<a class="btn ${cls || 'ligne'}" href="${lienAvis()}">Donner mon avis sur CAP</a>`;
+
+/* ===== Ma semaine type, dans Réglages (v1.14) : la régler dès le début, sans passer par l'agenda =====
+   Les créneaux de la semaine type vivent dans S.modele[rythme] (copie personnalisée de SEMAINES[rythme]) ; l'agenda garde ses exceptions par jour. */
+const JOURS_COURTS = ['', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+function vueSemaineType() {
+  const plages = semaineType().slice().sort((a, b) => a.j - b.j || a.d.localeCompare(b.d));
+  const perso = !!(S.modele[S.profil.rythme] && S.modele[S.profil.rythme].length);
+  const lignes = [1, 2, 3, 4, 5, 6, 7].map(j => { const l = plages.filter(p => p.j === j); return l.length ? `<div class="st-jour"><div class="st-nom">${JOURS_COURTS[j]}</div><div class="st-liste">${l.map(p => `<div class="st-plage"><span class="h">${p.d}–${p.f}</span><span class="t">${esc(apres3J() ? p.lib : (p.libAvant || p.lib))}${p.decl === 'qcm' ? ' <span class="petit muted">(dès l’inscription au QCM)</span>' : p.decl === 'apres3j' ? ' <span class="petit muted">(après les 3 Jours)</span>' : ''}</span><span class="actions"><button class="btn petit discret" data-act="st-modif" data-k="${p.k}">Modifier</button><button class="btn petit discret" data-act="st-retirer" data-k="${p.k}">Retirer</button></span></div>`).join('')}</div></div>` : ''; }).join('');
+  return `<section class="carte pile"><h2>Ma semaine type</h2>
+    <p class="petit muted">Les créneaux de travail que CAP place chaque semaine dans ton agenda et dans lesquels il te propose tes rendez-vous et tes études de marché. Règle-les dès le début sur tes vraies disponibilités : décale, retire, ajoute. ${perso ? 'Tu as personnalisé la semaine de ton rythme.' : `C’est la semaine type du ${S.profil.rythme === 'plein' ? 'temps plein' : 'temps partagé'}, telle quelle.`} Un rendez-vous se bloque sur 2 h par défaut.</p>
+    <div class="st">${lignes}</div>
+    <div class="actions"><button class="btn petit" data-act="st-ajouter">Ajouter un créneau</button><button class="btn petit discret" data-act="semaine-origine">Remettre la semaine type d’origine</button></div></section>`;
+}
+const champJour = (val) => `<label class="champ">Jour<select name="j">${[1, 2, 3, 4, 5, 6, 7].map(j => `<option value="${j}" ${Number(val) === j ? 'selected' : ''}>${JOURS_COURTS[j]}</option>`).join('')}</select></label>`;
+async function modifierPlageType(k) {
+  const base = plageDuModele(k); if (!base) return;
+  const lib = apres3J() ? base.lib : (base.libAvant || base.lib);
+  const r = await fenetre('Modifier ce créneau, toutes les semaines', `<div class="form">${champJour(base.j)}${champ('Début', 'd', base.d, 'time', 'required')}${champ('Fin', 'f', base.f, 'time', 'required')}</div>${champ('Libellé', 'lib', lib, 'text', 'required')}<div class="petit muted">Pour un seul jour, passe plutôt par « Modifier » sur le créneau dans Ma semaine.</div>`,
+    [{ lib: 'Annuler', v: 'annuler', cls: 'discret' }, { lib: 'Enregistrer', v: 'ok' }]);
+  if (r.v !== 'ok') return;
+  if (r.data.f <= r.data.d) { toast('La fin doit être après le début'); return; }
+  const m = personnaliserSemaine(); const p = m.find(x => x.k === k); if (!p) return;
+  p.j = Number(r.data.j); p.d = r.data.d; p.f = r.data.f; p.lib = r.data.lib.trim(); delete p.libAvant;
+  maj(); toast('Semaine type mise à jour');
+}
+async function retirerPlageType(k) {
+  const base = plageDuModele(k); if (!base) return;
+  const r = await fenetre('Retirer ce créneau', `<p>${JOURS_COURTS[base.j]} ${base.d}–${base.f}, ${esc(base.lib)} : retiré de toutes les semaines. Tu pourras le remettre avec « Ajouter un créneau » ou « Remettre la semaine type d’origine ».</p>`, [{ lib: 'Annuler', v: 'annuler', cls: 'discret' }, { lib: 'Retirer', v: 'ok' }]);
+  if (r.v !== 'ok') return;
+  const m = personnaliserSemaine(); const i = m.findIndex(x => x.k === k); if (i >= 0) m.splice(i, 1);
+  maj(); toast('Créneau retiré de la semaine type');
+}
+async function ajouterPlageType() {
+  const libs = ['Rendez-vous', 'Prise de R1 (appels)', 'Études de marché', 'Formation habilitante', 'Mise à jour primo-liste avec nouveaux contacts', 'Mail Manager'];
+  const r = await fenetre('Ajouter un créneau à ma semaine type', `<div class="form">${champJour(1)}${champ('Début', 'd', '18:30', 'time', 'required')}${champ('Fin', 'f', '20:30', 'time', 'required')}</div><label class="champ">Libellé<input type="text" name="lib" list="dl-libs" value="Rendez-vous" required><datalist id="dl-libs">${libs.map(l => `<option value="${esc(l)}">`).join('')}</datalist></label>`,
+    [{ lib: 'Annuler', v: 'annuler', cls: 'discret' }, { lib: 'Ajouter', v: 'ok' }]);
+  if (r.v !== 'ok') return;
+  if (r.data.f <= r.data.d) { toast('La fin doit être après le début'); return; }
+  const m = personnaliserSemaine(); const p = { j: Number(r.data.j), d: r.data.d, f: r.data.f, lib: r.data.lib.trim(), decl: 'j0' }; p.k = 'p' + uid();
+  m.push(p); maj(); toast('Créneau ajouté à ta semaine type');
 }
 </script>
 </body>

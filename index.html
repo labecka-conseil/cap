@@ -309,7 +309,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 <script>/* ===== CAP — moteur de l'outil du nouveau conseiller =====
    Données stockées dans le navigateur (localStorage), exportables et réimportables (portabilité entre versions). */
 'use strict';
-const CAP_VERSION = '1.14';
+const CAP_VERSION = '1.15';
 const DUREE_RDV = 120, DUREE_EM = 30; /* v1.14 : un rendez-vous se bloque sur 2 h par défaut (ajustable), une étude de marché sur 30 min */
 const dureeDe = e => Number(e && e.duree) || (e && e.type === 'EM' ? DUREE_EM : DUREE_RDV);
 const MAIL_AVIS = 'justyna@labecka-conseil.fr'; /* destinataire du bouton « Donner mon avis sur CAP » (phase de test) */
@@ -1024,7 +1024,7 @@ function vueAgenda() {
   }).join('');
   return `<section class="pile"><div class="semaine-nav"><h2 style="flex:1">Mon agenda</h2>
     <button class="btn petit discret" data-act="sem" data-pas="-7" aria-label="Semaine précédente">‹</button><span class="petit"><b>Semaine du ${fmtDate(l)}</b></span><button class="btn petit discret" data-act="sem" data-pas="7" aria-label="Semaine suivante">›</button></div>
-    <div class="actions"><button class="btn petit" data-act="nouveau-rdv">Planifier un rendez-vous</button><button class="btn petit ligne" data-act="nouvelle-etude">Planifier une étude</button><button class="btn petit discret" data-act="ics-semaine">Ajouter la semaine à mon agenda (.ics)</button><button class="btn petit discret" data-act="voir-reglages">Régler ma semaine type</button></div>
+    <div class="actions"><button class="btn petit" data-act="nouveau-rdv">Planifier un rendez-vous (R1, R2…)</button><button class="btn petit ligne" data-act="nouvelle-etude">Planifier une étude</button><button class="btn petit discret" data-act="ics-semaine">Ajouter la semaine à mon agenda (.ics)</button><button class="btn petit discret" data-act="voir-reglages">Régler ma semaine type</button></div>
     <div class="jours">${html}</div></section>`;
 }
 
@@ -1144,7 +1144,11 @@ function vueFormations() {
   /* Heures de formation habilitante : une ligne par semaine depuis la première saisie (ou 8 semaines), saisie directe */
   const semaines = []; if (h) { const l0 = lundiCourant(), deb = Object.keys(S.habilitation.heures).sort()[0]; const n = Math.min(26, Math.max(8, deb ? Math.round(diffJours(deb, l0) / 7) + 1 : 8)); for (let k = 0; k < n; k++) semaines.push(addJours(l0, -7 * k)); }
   const lignesH = semaines.map(l => `<label class="champ petit ligne-heures" for="h-${l}"><span>Semaine du ${fmtDate(l)}${l === lundiCourant() ? ' (en cours)' : ''}</span><input type="number" min="0" step="0.5" id="h-${l}" data-heures-semaine="${l}" value="${esc(S.habilitation.heures[l] || '')}" placeholder="0"></label>`).join('');
-  const habil = h ? `<div class="grille"><div class="kpi"><div class="lib">Formation</div><div class="val" style="font-size:22px">${esc(h.lib)}</div></div>
+  /* v1.15 : QCM validé = plus d'heures à saisir ; on affiche la suite administrative à la place */
+  const apresQcm = h ? `<div class="grille"><div class="kpi"><div class="lib">Formation</div><div class="val" style="font-size:22px">${esc(h.lib)}</div></div>
+      <div class="kpi"><div class="lib">QCM</div><div class="val" style="font-size:22px">Validé</div><div class="petit muted">${nf(heuresFaites())} h de formation suivies</div></div>
+      <div class="kpi"><div class="lib">La suite</div>${h.apres.map(x => `<div class="petit">${coche('apres-qcm', x.id) ? '✓' : '○'} ${esc(x.txt)}</div>`).join('')}<div class="petit muted">À cocher dans la tâche « Obtenir mon habilitation », dans Ma semaine.</div></div></div>` : '';
+  const habil = h && S.habilitation.qcmValide ? apresQcm : h ? `<div class="grille"><div class="kpi"><div class="lib">Formation</div><div class="val" style="font-size:22px">${esc(h.lib)}</div></div>
       <div class="kpi"><div class="lib">QCM</div><div class="val" style="font-size:22px">${S.habilitation.dateQCM ? capital(fmtDate(S.habilitation.dateQCM, true)) : 'date à fixer'}</div>${S.habilitation.qcmValide ? '<div class="petit">Validé</div>' : S.habilitation.dateQCM ? `<div class="petit muted">J-${diffJours(a, S.habilitation.dateQCM)}</div>` : ''}</div>
       <div class="kpi"><div class="lib">Heures validées</div><div class="val">${nf(heuresFaites())} <span class="petit muted">/ ${h.heures} h</span></div>${jaugeGlissante([h.heures], heuresFaites(), 'h')}${S.habilitation.dateQCM && !S.habilitation.qcmValide ? `<div class="petit muted">${cibleRevision()} h par semaine d’ici le QCM</div>` : ''}</div></div>
       <details class="repli" open><summary>Mes heures par semaine</summary><div class="heures-grille">${lignesH}</div></details>`
@@ -1230,6 +1234,7 @@ function fenetre(titre, corps, boutons) {
     d.innerHTML = `<form method="dialog" id="dlg-form"><div class="corps"><h2>${esc(titre)}</h2>${corps}</div><div class="bas">${boutons.map(b => `<button class="btn ${b.cls || ''}" value="${b.v}" ${b.v === 'ok' ? 'type="submit"' : 'type="button"'} data-v="${b.v}">${esc(b.lib)}</button>`).join('')}</div></form>`;
     const f = $('#dlg-form');
     const fin = v => { const data = Object.fromEntries(new FormData(f).entries()); d.close(); res({ v, data, form: f }); };
+    d.fermer = fin; /* v1.15 : fermer la fenêtre depuis le code (bascule vers la fiche d'un contact) */
     $$('button[data-v]', d).forEach(b => { if (b.dataset.v !== 'ok') b.addEventListener('click', () => fin(b.dataset.v)); });
     f.addEventListener('submit', e => { e.preventDefault(); if (!f.reportValidity()) return; fin('ok'); });
     d.addEventListener('cancel', () => res({ v: 'annuler', data: {} }), { once: true });
@@ -1380,21 +1385,25 @@ async function formEvt(o) {
   const c = o.contact || null;
   const datalist = `<datalist id="dl-noms">${S.contacts.slice(0, 2000).map(x => `<option value="${esc(nomComplet(x))}">`).join('')}</datalist>`;
   const qui = c ? `<p><b>${esc(nomComplet(c))}</b> · ${type === 'EM' ? 'étude de marché' : (c.signeLe ? 'RX, rendez-vous de suivi' : 'R' + (e.num || prochainNumero(c)))}</p>`
-    : `<label class="champ">Avec qui<input name="qui" list="dl-noms" required placeholder="Prénom Nom"></label>${datalist}<div class="petit muted">Si la personne n’est pas dans ta primo-liste, elle y est ajoutée automatiquement.</div>`;
+    : `<label class="champ">Avec qui<input name="qui" list="dl-noms" required placeholder="Prénom Nom" autocomplete="off"></label>${datalist}<div class="petit muted" id="qui-indice">${type === 'RDV' ? 'Un nom déjà dans ta primo-liste enchaîne sur son prochain rendez-vous (R2, R3…). ' : ''}Si la personne n’est pas dans ta primo-liste, elle y est ajoutée automatiquement.</div>`;
   const libres = o.evt ? [] : prochainesPlages(type, type === 'EM' ? DUREE_EM : DUREE_RDV);
   const p0 = !o.date && libres[0] ? libres[0] : {};
   const num = type === 'RDV' ? (o.evt ? e.num : (c ? prochainNumero(c) : 1)) : null;
   const propose = type === 'RDV' && num !== 'X' && Number(num) >= 2; /* v1.12 : dès le R2, la solution qu'on va proposer et le montant envisagé (facultatifs) */
   const precedent = c && !o.evt ? c.evts.filter(x => x.type === 'RDV' && x.solution).sort((x, y) => (x.date + x.heure).localeCompare(y.date + y.heure)).pop() : null;
   const blocSolution = propose ? `<h3>Ce que je vais proposer <span class="petit muted" style="font-weight:400">(facultatif)</span></h3><div class="form">${choix('Solution', 'solution', e.solution || (precedent ? precedent.solution : ''), [['', '—']].concat(SOLUTIONS))}${champ('Montant envisagé (€)', 'montant', e.montant || (precedent ? precedent.montant : ''), 'number', 'min="0" step="100" inputmode="numeric"')}</div>` : '';
-  const corps = `${qui}${puces(o.date ? [] : libres)}<div class="form">${champ('Date', 'date', e.date || o.date || p0.date || aujourdhui(), 'date', 'required')}${champ('Heure', 'heure', e.heure || p0.heure || '', 'time')}${champ('Durée (min)', 'duree', e.duree || (type === 'EM' ? DUREE_EM : DUREE_RDV), 'number', 'min="15" step="15"')}</div>${blocSolution}
+  const corps = `${qui}${puces(o.date ? [] : libres)}<div class="form">${champ('Date', 'date', e.date || o.date || p0.date || aujourdhui(), 'date', 'required')}${champ('Heure', 'heure', e.heure || o.heure || p0.heure || '', 'time')}${champ('Durée (min)', 'duree', e.duree || (type === 'EM' ? DUREE_EM : DUREE_RDV), 'number', 'min="15" step="15"')}</div>${blocSolution}
     ${type === 'RDV' ? champ('Lien de visio (Zoom, Meet…)', 'visio', e.visio, 'url', 'placeholder="https://"') : ''}<label class="champ">Note<input type="text" name="note" value="${esc(e.note || '')}"></label>
     ${type === 'RDV' && (o.evt ? estR1(e) : (!c || (!c.signeLe && prochainNumero(c) === 1))) ? blocDocsR1(false) : ''}`;
   const btns = o.evt ? [{ lib: 'Supprimer', v: 'suppr', cls: 'discret' }, ...(type === 'EM' && !c.evts.some(x => x.type === 'RDV') ? [{ lib: 'Transformer en R1', v: 'r1', cls: 'ligne' }] : []), { lib: 'Enregistrer', v: 'ok' }]
     : [{ lib: 'Annuler', v: 'annuler', cls: 'discret' }, { lib: 'Planifier', v: 'ok' }];
   const attente = fenetre(o.evt ? 'Modifier' : (type === 'EM' ? 'Planifier une étude de marché' : 'Planifier un rendez-vous'), corps, btns);
   brancherPuces('date', 'heure'); brancherDocsR1();
+  /* v1.15 : depuis l'agenda, un nom déjà connu dont le prochain rendez-vous est un R2, R3… (ou un RX) bascule sur sa fiche, avec le bloc « Ce que je vais proposer » */
+  let bascule = null;
+  if (!c && type === 'RDV') { const q = $('input[name=qui]', $('#dlg')); const verif = () => { const x = S.contacts.find(k => norm(nomComplet(k)) === norm(q.value)); const ind = $('#qui-indice', $('#dlg')); if (x && (x.signeLe || prochainNumero(x) >= 2)) { bascule = x; $('#dlg').fermer('bascule'); } else if (ind) ind.textContent = x ? `${nomComplet(x)} est dans ta primo-liste : ce sera son R1.` : 'Un nom déjà dans ta primo-liste enchaîne sur son prochain rendez-vous (R2, R3…). Si la personne n’est pas dans ta primo-liste, elle y est ajoutée automatiquement.'; }; q.addEventListener('change', verif); q.addEventListener('input', () => { if (S.contacts.some(k => norm(nomComplet(k)) === norm(q.value))) verif(); }); }
   const r = await attente;
+  if (r.v === 'bascule' && bascule) return formEvt({ contact: bascule, type: 'RDV', date: r.data.date, heure: r.data.heure });
   if (r.v === 'annuler') return;
   if (o.evt && r.v === 'suppr') { c.evts = c.evts.filter(x => x.id !== e.id); maj(); return; }
   let cible = c;
@@ -1426,12 +1435,13 @@ async function proposerCreneau(quoi) {
   }
   const j0 = jours[0] || { date: addJours(aujourdhui(), 1), heure: modele.d, fin: modele.f };
   const attente = fenetre('Planifier un créneau', `<p>Il te manque des rendez-vous d’avance. Choisis une des plages proposées ou change ce qui ne te va pas.</p>
-    <label class="champ">Créneau<select name="lib"><option ${quoi === 'r1' ? 'selected' : ''}>Prise de R1 (appels)</option>${methodeDirecte() ? '' : `<option ${quoi !== 'r1' ? 'selected' : ''}>Études de marché</option>`}</select></label>
+    <label class="champ">Créneau<select name="lib"><option ${quoi === 'r1' ? 'selected' : ''}>Prise de R1 (appels)</option>${methodeDirecte() ? '' : `<option ${quoi !== 'r1' ? 'selected' : ''}>Études de marché</option>`}<option>Rendez-vous avec un contact (R1, R2, R3…)</option></select></label>
     ${puces(jours)}
     <div class="form">${champ('Date', 'date', j0.date, 'date', 'required')}${champ('Début', 'd', j0.heure, 'time', 'required')}${champ('Fin', 'f', j0.fin, 'time', 'required')}</div>`, [{ lib: 'Annuler', v: 'annuler', cls: 'discret' }, { lib: 'Ajouter à ma semaine', v: 'ok' }]);
   brancherPuces('date', 'd');
   const r = await attente;
   if (r.v !== 'ok') return;
+  if (/^Rendez-vous/.test(r.data.lib)) return formEvt({ type: 'RDV', date: r.data.date, heure: r.data.d }); /* v1.15 */
   S.plages.push({ id: uid(), date: r.data.date, d: r.data.d, f: r.data.f, lib: r.data.lib }); VUE.lundi = lundiDe(r.data.date); maj(); toast('Créneau ajouté à ta semaine');
 }
 
@@ -1717,6 +1727,7 @@ async function effacer() {
 }
 
 /* ===== Événements ===== */
+function dateSaisie(v) { const an = Number(String(v || '').slice(0, 4)); return an >= 1900 && an <= 2100 ? v : ''; } /* v1.15 : une année en cours de saisie (0002, 0020…) n'est pas retenue */
 function poser(chemin, val) { const k = chemin.split('.'); let o = S; while (k.length > 1) o = o[k.shift()]; o[k[0]] = val; }
 function brancher() {
   const app = $('#app');
@@ -1785,12 +1796,14 @@ function brancher() {
     if (t.dataset.parcours) { if (t.checked) S.parcours[t.dataset.parcours] = { fait: true, le: aujourdhui() }; else delete S.parcours[t.dataset.parcours]; maj(); return; }
     if (t.dataset.parcoursChoix) { S.parcours.modules = S.parcours.modules || {}; S.parcours.modules[t.dataset.parcoursChoix] = t.value; maj(); return; }
     if (t.dataset.fil) { VUE.fil[t.dataset.fil] = t.value; VUE.limite = 150; rendre(); return; }
-    if (t.dataset.cible) { poser(t.dataset.cible, t.value); maj(); return; }
+    if (t.dataset.cible) { if (t.type === 'date') { poser(t.dataset.cible, dateSaisie(t.value)); noterActivite(); sauver(); return; } poser(t.dataset.cible, t.value); maj(); return; }
     if (t.dataset.heures) { S.habilitation.heures[lundiCourant()] = Number(t.value) || 0; maj(); return; }
     if (t.dataset.heuresSemaine) { const l = t.dataset.heuresSemaine; if (Number(t.value) > 0) S.habilitation.heures[l] = Number(t.value); else delete S.habilitation.heures[l]; maj(); return; }
     if (t.dataset.evenement) { if (t.checked) S.evenements[t.dataset.evenement] = true; else delete S.evenements[t.dataset.evenement]; maj(); return; }
-    if (t.dataset.forman) { const k = t.dataset.forman; S.formations[k] = { date: t.value, poseLe: t.value ? aujourdhui() : '' }; if (!t.value) delete S.formations[k]; maj(); return; }
+    if (t.dataset.forman) { const k = t.dataset.forman, v = dateSaisie(t.value); S.formations[k] = { date: v, poseLe: v ? aujourdhui() : '' }; if (!v) delete S.formations[k]; noterActivite(); sauver(); return; }
   });
+  /* v1.15 : un champ date déclenche « change » à chaque chiffre tapé (Chrome, Edge) et redessiner l'écran fermait le champ (12/10/0020). On enregistre sans redessiner, et on redessine quand on quitte le champ. */
+  app.addEventListener('focusout', e => { const t = e.target; if (!t || t.type !== 'date' || !(t.dataset.cible || t.dataset.forman)) return; if (e.relatedTarget && e.relatedTarget.type === 'date') return; setTimeout(() => { if (t.isConnected) rendre(); }, 0); });
   app.addEventListener('input', e => {
     const id = e.target.id; if (id !== 'cherche' && id !== 'cherche-dev') return;
     if (id === 'cherche') { VUE.cherche = e.target.value; VUE.limite = 150; } else { VUE.devCherche = e.target.value; VUE.devLimite = 100; }
